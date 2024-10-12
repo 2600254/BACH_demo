@@ -842,6 +842,7 @@ RC BufferPoolManager::create_file(const char *file_name)
 
 RC BufferPoolManager::remove_file(const char *data_file){
   close_file(data_file);
+  
   if (::remove(data_file) != 0) {
     LOG_ERROR("Failed to remove %s, due to %s.", data_file, strerror(errno));
     return RC::IOERR_ACCESS;

@@ -128,23 +128,25 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
 }
 
 RC Table::drop(Db *db, const char *path){
+  //删除索引文件
+  BufferPoolManager &bpm       = db->buffer_pool_manager();
+  for(auto index : indexes_){
+    string index_file = table_index_file(base_dir_.c_str(), table_meta_.name(), index->index_meta().name());
+    delete index;
+    index = nullptr;
+    bpm.remove_file(index_file.c_str());
+  }
+  indexes_.clear();
+  
+  //删除表文件
   if(::remove(path) < 0){
     LOG_ERROR("Failed to remove table file. file name=%s, errmsg=%s", path, strerror(errno));
     return RC::INTERNAL;
   }
 
   string             data_file = table_data_file(base_dir_.c_str(), table_meta_.name());
-  BufferPoolManager &bpm       = db->buffer_pool_manager();
   bpm.remove_file(data_file.c_str());
   data_buffer_pool_ = nullptr;
-
-  for(auto index : indexes_){
-    index->destory();
-    delete index;
-    index = nullptr;
-  }
-  indexes_.clear();
-
 
   LOG_INFO("Successfully drop table %s:%s", base_dir_, table_meta_.name());
   return RC::SUCCESS;

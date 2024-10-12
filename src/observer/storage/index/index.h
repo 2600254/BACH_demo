@@ -41,9 +41,6 @@ public:
   virtual ~Index() = default;
 
   const IndexMeta &index_meta() const { return index_meta_; }
-
-  virtual void destory() = 0;
-
   /**
    * @brief 插入一条数据
    *
