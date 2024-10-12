@@ -323,6 +323,22 @@ inline int operator-(const DateTime &lhs, const DateTime &rhs)
           lhs.m_time / 1000 - rhs.m_time / 1000);
 }
 
+
+/**
+  * @brief check whether a date is valid
+  * @param year year
+  * @param month month
+  * @param day day
+  * @return true if the date is valid, otherwise false
+*/
+bool check_date(int year, int month, int day){
+  static int mon[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  bool leap = (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0));
+  return year > 0 && year <= 9999 
+  && month > 0 && month <= 12 
+  && day > 0 && day <= mon[month] + (month == 2 && leap);
+}
+
 // Date and Time represented in UTC.
 class TimeStamp : public DateTime
 {

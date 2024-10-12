@@ -31,6 +31,7 @@ class Value final
 public:
   friend class DataType;
   friend class IntegerType;
+  friend class DateType;
   friend class FloatType;
   friend class BooleanType;
   friend class CharType;
@@ -87,6 +88,10 @@ public:
   void set_type(AttrType type) { this->attr_type_ = type; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
+  void set_date(int year, int month, int day){
+    this->attr_type_ = AttrType::DATES;
+    this->value_.int_value_ = year * 10000 + month * 100 + day;
+  }
   void set_value(const Value &value);
   void set_boolean(bool val);
 
