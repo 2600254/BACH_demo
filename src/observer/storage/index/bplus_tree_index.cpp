@@ -44,6 +44,15 @@ RC BplusTreeIndex::create(Table *table, const char *file_name, const IndexMeta &
   return RC::SUCCESS;
 }
 
+void BplusTreeIndex::destory() {
+  if (inited_) {
+    LOG_INFO("Begin to destory index, index:%s, field:%s", index_meta_.name(), index_meta_.field());
+    index_handler_.destory();
+    inited_ = false;
+  }
+  LOG_INFO("Successfully destory index.");
+}
+
 RC BplusTreeIndex::open(Table *table, const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta)
 {
   if (inited_) {
