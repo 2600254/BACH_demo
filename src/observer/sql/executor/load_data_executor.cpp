@@ -61,6 +61,7 @@ RC insert_record_from_file(
     if (field->type() != AttrType::CHARS) {
       common::strip(file_value);
     }
+    
     rc = DataType::type_instance(field->type())->set_value_from_str(record_values[i], file_value);
   }
 
