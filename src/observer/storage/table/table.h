@@ -77,6 +77,14 @@ public:
   RC make_record(int value_num, const Value *values, Record &record);
 
   /**
+   * @brief 修改给定记录的特定字段的数据
+   * @param field    需要修改的字段元数据
+   * @param value    该字段更新后的值
+   * @param record   生成的记录数据
+   */
+  RC modify_record(const FieldMeta *field, const Value value, Record &record);
+
+  /**
    * @brief 在当前的表中插入一条记录
    * @details 在表文件和索引中插入关联数据。这里只管在表中插入数据，不关心事务相关操作。
    * @param record[in/out] 传入的数据包含具体的数据，插入成功会通过此字段返回RID
@@ -84,6 +92,7 @@ public:
   RC insert_record(Record &record);
   RC delete_record(const Record &record);
   RC delete_record(const RID &rid);
+  RC update_record(const Record &record, FieldMeta *field, const Value &value);
   RC get_record(const RID &rid, Record &record);
 
   RC recover_insert_record(Record &record);
