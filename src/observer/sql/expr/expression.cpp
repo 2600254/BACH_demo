@@ -174,7 +174,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     } break;
     case NOT_LIKE_OP:{
       result = !str_like(left,right);
-    }break;
+    } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
@@ -282,6 +282,7 @@ RC ComparisonExpr::compare_column(const Column &left, const Column &right, std::
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &children)
 ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &children)
     : conjunction_type_(type), children_(std::move(children))
 {}
