@@ -290,6 +290,8 @@ struct DateTime
   void parse_duration(string dur_str, struct tm &tm_t);
 };
 
+bool check_date(int y, int m, int d);
+
 inline bool operator==(const DateTime &lhs, const DateTime &rhs)
 {
   return lhs.m_date == rhs.m_date && lhs.m_time == rhs.m_time;

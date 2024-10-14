@@ -422,4 +422,5 @@ bool DateTime::is_valid_xml_datetime(const string &str)
   return true;
 }
 
+
 }  // namespace common

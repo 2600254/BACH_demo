@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/log/log.h"
 
+
 Value::Value(int val) { set_int(val); }
 
 Value::Value(float val) { set_float(val); }
@@ -143,6 +144,14 @@ void Value::set_int(int val)
   length_           = sizeof(val);
 }
 
+void Value::set_date(int val)
+{
+  reset();
+  attr_type_ = AttrType::DATES;
+  value_.int_value_ = val;
+  length_ = sizeof(val);
+}
+
 void Value::set_float(float val)
 {
   reset();
@@ -184,6 +193,9 @@ void Value::set_value(const Value &value)
   switch (value.attr_type_) {
     case AttrType::INTS: {
       set_int(value.get_int());
+    } break;
+    case AttrType::DATES: {
+      set_date(value.get_int());
     } break;
     case AttrType::FLOATS: {
       set_float(value.get_float());
