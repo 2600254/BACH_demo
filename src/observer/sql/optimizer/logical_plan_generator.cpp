@@ -167,7 +167,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     if (left->value_type() != right->value_type()) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
-      if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+      if (left_to_right_cost < right_to_left_cost && left_to_right_cost != INT32_MAX) {
         ExprType left_type = left->type();
         auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
         if (left_type == ExprType::VALUE) {
@@ -181,7 +181,8 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
         } else {
           left = std::move(cast_expr);
         }
-      } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
+      // } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
+      } else if (right_to_left_cost <= left_to_right_cost) {
         ExprType right_type = right->type();
         auto cast_expr = make_unique<CastExpr>(std::move(right), left->value_type());
         if (right_type == ExprType::VALUE) {

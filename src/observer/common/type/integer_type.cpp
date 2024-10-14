@@ -52,7 +52,7 @@ RC IntegerType::negative(const Value &val, Value &result) const
 
 RC IntegerType::set_value_from_str(Value &val, const string &data) const
 {
-  RC                rc = RC::SUCCESS;
+  RC           rc = RC::SUCCESS;
   stringstream deserialize_stream;
   deserialize_stream.clear();  // 清理stream的状态，防止多次解析出现异常
   deserialize_stream.str(data);
@@ -71,5 +71,15 @@ RC IntegerType::to_string(const Value &val, string &result) const
   stringstream ss;
   ss << val.value_.int_value_;
   result = ss.str();
+  return RC::SUCCESS;
+}
+
+RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
+{
+  if (type == AttrType::FLOATS) {
+    result.set_float(val.get_int());
+  } else {
+    return RC::UNSUPPORTED;
+  }
   return RC::SUCCESS;
 }
