@@ -130,14 +130,15 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
 RC Table::drop(const char *path)
 {
   // 删除表文件
-  if (remove(path) != 0) {
+  if (::remove(path) < 0) {
     LOG_ERROR("Failed to remove table file. file name=%s, errmsg=%s", path, strerror(errno));
-    return RC::INVALID_ARGUMENT;
+    return RC::INTERNAL;
   }
 
   string             data_file = table_data_file(base_dir_.c_str(), table_meta_.name());
-  BufferPoolManager &bpm       = db()->buffer_pool_manager();
+  BufferPoolManager &bpm       = db_->buffer_pool_manager();
   bpm.remove_file(data_file.c_str());
+  data_buffer_pool_ = nullptr;
 
   if (record_handler_ != nullptr) {
     delete record_handler_;

@@ -68,7 +68,7 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return CreateIndexStmt::create(db, sql_node.create_index, stmt);
     }
 
-    case SCF_DROP_INDEX: {
+    case SCF_DROP_TABLE: {
       return DropTableStmt::drop(db, sql_node.drop_table, stmt);
     }
 
