@@ -106,6 +106,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         EXPLAIN
         STORAGE
         FORMAT
+        INNER
+        JOIN
         EQ
         LT
         GT
