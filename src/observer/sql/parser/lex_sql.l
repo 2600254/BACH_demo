@@ -114,6 +114,11 @@ FLOAT                                   RETURN_TOKEN(FLOAT_T);
 LOAD                                    RETURN_TOKEN(LOAD);
 DATA                                    RETURN_TOKEN(DATA);
 INFILE                                  RETURN_TOKEN(INFILE);
+MAX |
+MIN |
+AVG |
+SUM |
+COUNT                                   yylval->string=strdup(yytext); RETURN_TOKEN(AGGR);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 GROUP                                   RETURN_TOKEN(GROUP);
 BY                                      RETURN_TOKEN(BY);

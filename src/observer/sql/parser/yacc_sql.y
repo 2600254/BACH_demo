@@ -103,6 +103,11 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         LOAD
         DATA
         INFILE
+        MAX_T
+        MIN_T
+        AVG_T
+        SUM_T
+        COUNT_T
         EXPLAIN
         STORAGE
         FORMAT
@@ -137,6 +142,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %token <floats> FLOAT
 %token <string> ID
 %token <string> SSS
+%token <string> AGGR
+
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
@@ -157,6 +164,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
+%type <string>              aggre_type
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
 %type <sql_node>            insert_stmt
@@ -518,6 +526,9 @@ expression:
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
+    | aggre_type LBRACE expression RBRACE {
+      $$ = create_aggregate_expression($1, $3, sql_string, &@$);
+    }
     | value {
       $$ = new ValueExpr(*$1);
       $$->set_name(token_name(sql_string, &@$));
@@ -535,6 +546,11 @@ expression:
     // your code here
     ;
 
+aggre_type:
+    AGGR {
+      $$ = $1;
+    }
+    ;
 rel_attr:
     ID {
       $$ = new RelAttrSqlNode;
@@ -663,6 +679,9 @@ group_by:
     /* empty */
     {
       $$ = nullptr;
+    }
+    | GROUP BY expression_list {
+      $$ = $3;
     }
     ;
 load_data_stmt:

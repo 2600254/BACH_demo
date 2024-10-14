@@ -254,7 +254,7 @@ struct ErrorSqlNode
  * @brief 表示一个SQL语句的类型
  * @ingroup SQLParser
  */
-enum SqlCommandFlag
+enum  SqlCommandFlag
 {
   SCF_ERROR = 0,
   SCF_CALC,
