@@ -9,7 +9,7 @@ MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
 //
-// Created by Wangyunlai on 2022/5/22.
+// Created by liuxin on 2024/10/14.
 //
 
 #include "sql/stmt/update_stmt.h"
@@ -51,6 +51,10 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt) {
   Value *value = const_cast<Value*>(&update_sql.value);
   const TableMeta &table_meta = table->table_meta();
   FieldMeta *field = const_cast<FieldMeta*>(table_meta.field(update_sql.attribute_name.c_str()));
+  if (field == nullptr) {
+    LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_name.c_str());
+    return RC::SCHEMA_FIELD_NOT_EXIST;
+  }
 
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(
