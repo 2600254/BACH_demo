@@ -322,6 +322,28 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   return RC::SUCCESS;
 }
 
+RC Table::modify_record(const FieldMeta *field, const Value value, Record &record){
+  RC rc = RC::SUCCESS;
+  char *record_data = record.data();
+  if (field->type() != value.attr_type()) {
+    Value real_value;
+    rc = Value::cast_to(value, field->type(), real_value);
+    if (OB_FAIL(rc)) {
+      LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
+          table_meta_.name(), field->name(), value.to_string().c_str());
+    }
+    rc = set_value_to_record(record_data, real_value, field);
+  } else {
+    rc = set_value_to_record(record_data, value, field);
+  }
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to make record. table name:%s", table_meta_.name());
+    return rc;
+  }
+  record.set_data(record_data, table_meta_.record_size());
+  return RC::SUCCESS;
+}
+
 RC Table::set_value_to_record(char *record_data, const Value &value, const FieldMeta *field)
 {
   size_t       copy_len = field->len();
@@ -499,6 +521,43 @@ RC Table::delete_record(const Record &record)
            name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
   }
   rc = record_handler_->delete_record(&record.rid());
+  return rc;
+}
+
+RC Table::update_record(const Record &record, FieldMeta *field, const Value &value){
+  RC rc = RC::SUCCESS;
+  //从索引中删除旧的记录
+  for (Index *index : indexes_) {
+    rc = index->delete_entry(record.data(), &record.rid());
+    ASSERT(RC::SUCCESS == rc, 
+           "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
+           name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
+  }
+  //更新记录
+  rc = modify_record(field, value, const_cast<Record &>(record));
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to update record. table name=%s, rc=%s", name(), strrc(rc));
+    return rc;
+  }
+  rc = record_handler_->update_record(&record.rid(), record.data());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to update record. table name=%s, rc=%s", name(), strrc(rc));
+    return rc;
+  }
+  //向索引中插入新的记录
+  rc = insert_entry_of_indexes(record.data(), record.rid());
+  if (rc != RC::SUCCESS) {  // 可能出现了键值重复
+    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
+    if (rc2 != RC::SUCCESS) {
+      LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
+                name(), rc2, strrc(rc2));
+    }
+    rc2 = record_handler_->delete_record(&record.rid());
+    if (rc2 != RC::SUCCESS) {
+      LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
+                name(), rc2, strrc(rc2));
+    }
+  }
   return rc;
 }
 
