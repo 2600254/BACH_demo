@@ -119,6 +119,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NE
         NOT
         LIKE
+        UNIQUE
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -138,6 +139,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   char *                                     string;
   int                                        number;
   float                                      floats;
+  bool                                       boolean;
 }
 
 %token <number> NUMBER
@@ -163,6 +165,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <condition_list>      condition_list
 %type <string>              storage_format
 %type <relation_list>       rel_list
+%type <relation_list>       idx_col_list
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
@@ -188,6 +191,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
+%type <boolean>             unique_option
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -283,16 +287,51 @@ desc_table_stmt:
     ;
 
 create_index_stmt:    /*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE
+    CREATE unique_option INDEX ID ON ID LBRACE ID idx_col_list RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
-      create_index.index_name = $3;
-      create_index.relation_name = $5;
-      create_index.attribute_name = $7;
-      free($3);
-      free($5);
-      free($7);
+      create_index.is_unique = $2;
+      create_index.index_name = $4;
+      create_index.relation_name = $6;
+
+      std::vector<std::string> *idx_cols = $9;
+      if (nullptr != idx_cols) {
+        create_index.attr_names.swap(*idx_cols);
+        delete $9;
+      }
+      create_index.attr_names.emplace_back($8);
+      std::reverse(create_index.attr_names.begin(), create_index.attr_names.end());
+      free($4);
+      free($6);
+      free($8);
+    }
+    ;
+
+unique_option:
+    /* empty */
+    {
+      $$ = false;
+    }
+    | UNIQUE
+    {
+      $$ = true;
+    }
+    ;
+
+idx_col_list:
+    {
+      $$ = nullptr;
+    }
+    | COMMA ID idx_col_list
+    {
+      if ($3!= nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<std::string>;
+      }
+      $$->emplace_back($2);
+      free($2);
     }
     ;
 

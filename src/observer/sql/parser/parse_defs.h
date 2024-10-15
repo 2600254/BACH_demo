@@ -51,8 +51,8 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
-  LIKE_OP,      //"like"      
-  NOT_LIKE_OP,  //"not like"  
+  LIKE_OP,      //"like"
+  NOT_LIKE_OP,  //"not like"
   NO_OP
 };
 
@@ -179,9 +179,11 @@ struct DropTableSqlNode
  */
 struct CreateIndexSqlNode
 {
-  std::string index_name;      ///< Index name
-  std::string relation_name;   ///< Relation name
-  std::string attribute_name;  ///< Attribute name
+  bool                     is_unique;       ///< 是否唯一索引
+  std::string              index_name;      ///< Index name
+  std::string              relation_name;   ///< Relation name
+  std::string              attribute_name;  ///< Attribute name
+  std::vector<std::string> attr_names;
 };
 
 /**
@@ -256,7 +258,7 @@ struct ErrorSqlNode
  * @brief 表示一个SQL语句的类型
  * @ingroup SQLParser
  */
-enum  SqlCommandFlag
+enum SqlCommandFlag
 {
   SCF_ERROR = 0,
   SCF_CALC,
