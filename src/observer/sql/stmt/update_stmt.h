@@ -19,7 +19,6 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 
 class Table;
-class FilterStmt;
 
 /**
  * @brief 更新语句
