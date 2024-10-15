@@ -66,7 +66,6 @@ RC PredicateMergeRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool 
 RC PredicateMergeRewriter::merge(std::unique_ptr<Expression>& source, std::unique_ptr<Expression>& target)
 {
   RC rc = RC::SUCCESS;
-    // unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, std::move(cmp_exprs)));
   std::vector<std::unique_ptr<Expression>> cmp_exprs;
   auto extract_exprs = [&cmp_exprs](std::unique_ptr<Expression>& expr) {
     if (expr->type() == ExprType::CONJUNCTION) {
@@ -89,7 +88,7 @@ RC PredicateMergeRewriter::merge(std::unique_ptr<Expression>& source, std::uniqu
   extract_exprs(target);
 
   // 新分配一个 ConjunctionExpr
-  std::unique_ptr<Expression> new_expr = std::make_unique<ConjunctionExpr>(ConjunctionExpr::Type::AND, std::move(cmp_exprs));
+  std::unique_ptr<Expression> new_expr = std::make_unique<ConjunctionExpr>(ConjunctionExpr::Type::AND, cmp_exprs);
   std::swap(target, new_expr);
   return rc;
 }
