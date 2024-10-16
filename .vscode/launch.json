@@ -8,6 +8,7 @@
             "type": "cppdbg",
             "request": "launch",
             "name": "Debug",
+            "preLaunchTask": "build",
             "program": "${workspaceFolder}/${defaultBuildTask}/bin/observer",
             "args": ["-f", "${workspaceFolder}/etc/observer.ini", "-P", "cli"],
             "cwd": "${workspaceFolder}/${defaultBuildTask}/",
