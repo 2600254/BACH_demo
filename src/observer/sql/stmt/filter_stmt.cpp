@@ -91,6 +91,20 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit = new FilterUnit;
 
+  if(condition.left_is_null && condition.right_is_list){
+    if((condition.comp == EXISTS_OP || condition.comp == NOT_EXISTS_OP)){
+      FilterObj left_filter_obj;
+      left_filter_obj.init_null();
+      FilterObj right_filter_obj;
+      right_filter_obj.init_values(condition.right_values);
+      filter_unit->set_left(left_filter_obj);
+      filter_unit->set_right(right_filter_obj);
+    }else{
+      LOG_WARN("invalid compare operator : %d", comp);
+      return RC::INVALID_ARGUMENT;
+    }
+  }
+
   if (condition.left_is_attr) {
     Table           *table = nullptr;
     const FieldMeta *field = nullptr;
@@ -120,9 +134,27 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     filter_obj.init_attr(Field(table, field));
     filter_unit->set_right(filter_obj);
   } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.right_value);
-    filter_unit->set_right(filter_obj);
+    if(comp == NOT_IN_OP || comp == IN_OP){
+      if(condition.right_is_list == 0){
+        LOG_WARN("input error");
+        return RC::INVALID_ARGUMENT;
+      }
+      FilterObj filter_obj;
+      filter_obj.init_values(condition.right_values);
+      filter_unit->set_right(filter_obj);
+    }else{
+      FilterObj filter_obj;
+      if(condition.right_is_list == 0){
+        filter_obj.init_value(condition.right_value);
+      }else if(condition.right_values.size() > 1){
+        LOG_WARN("input error");
+        return RC::INVALID_ARGUMENT;
+      }else{
+        filter_obj.init_value(condition.right_values[0]);
+      }
+      filter_unit->set_right(filter_obj);
+      
+    }
   }
 
   filter_unit->set_comp(comp);

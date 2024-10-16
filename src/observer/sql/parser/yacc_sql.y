@@ -119,6 +119,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NE
         NOT
         LIKE
+        IN
+        EXISTS
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -623,6 +625,8 @@ condition:
       $$->left_is_attr = 1;
       $$->left_attr = *$1;
       $$->right_is_attr = 0;
+      $$->right_is_list = 0;
+      $$->left_is_null = 0;
       $$->right_value = *$3;
       $$->comp = $2;
 
@@ -635,6 +639,8 @@ condition:
       $$->left_is_attr = 0;
       $$->left_value = *$1;
       $$->right_is_attr = 0;
+      $$->right_is_list = 0;
+      $$->left_is_null = 0;
       $$->right_value = *$3;
       $$->comp = $2;
 
@@ -647,6 +653,8 @@ condition:
       $$->left_is_attr = 1;
       $$->left_attr = *$1;
       $$->right_is_attr = 1;
+      $$->right_is_list = 0;
+      $$->left_is_null = 0;
       $$->right_attr = *$3;
       $$->comp = $2;
 
@@ -659,10 +667,61 @@ condition:
       $$->left_is_attr = 0;
       $$->left_value = *$1;
       $$->right_is_attr = 1;
+      $$->right_is_list = 0;
+      $$->left_is_null = 0;
       $$->right_attr = *$3;
       $$->comp = $2;
 
       delete $1;
+      delete $3;
+    }
+    | value comp_op LBRACE value value_list RBRACE {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = 0;
+      $$->left_value = *$1;
+      $$->right_is_attr = 0;
+      $$->left_is_null = 0;
+      $$->right_is_list = 1;
+      $$->comp = $2;
+      if ($5 != nullptr) {
+        $$->right_values.swap(*$5);
+        delete $5;
+      }
+      $$->right_values.emplace_back(*$4);
+      std::reverse($$->right_values.begin(), $$->right_values.end());
+      delete $4;
+      delete $1;
+    }
+    | rel_attr comp_op LBRACE value value_list RBRACE {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = 1;
+      $$->left_attr = *$1;
+      $$->left_is_null = 0;
+      $$->right_is_attr = 0;
+      $$->right_is_list = 1;
+      $$->comp = $2;
+      if ($5 != nullptr) {
+        $$->right_values.swap(*$5);
+        delete $5;
+      }
+      $$->right_values.emplace_back(*$4);
+      std::reverse($$->right_values.begin(), $$->right_values.end());
+      delete $4;
+      delete $1;
+    }
+    | comp_op LBRACE value value_list RBRACE {
+      $$ = new ConditionSqlNode;
+      $$->left_is_attr = 0;
+      $$->left_is_null = 1;
+      $$->right_is_attr = 0;
+      $$->right_is_list = 1;
+      $$->comp = $1;
+      if ($4 != nullptr) {
+        $$->right_values.swap(*$4);
+        delete $4;
+      }
+      $$->right_values.emplace_back(*$3);
+      std::reverse($$->right_values.begin(), $$->right_values.end());
       delete $3;
     }
     ;
@@ -676,6 +735,10 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | LIKE { $$ = LIKE_OP;}
     | NOT LIKE {$$ = NOT_LIKE_OP;}
+    | IN  {$$ = IN_OP;}
+    | NOT IN {$$ = NOT_IN_OP;}
+    | EXISTS {$$ = EXISTS_OP;}
+    | NOT EXISTS {$$ = NOT_EXISTS_OP;}
     ;
 
 // your code here

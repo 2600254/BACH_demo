@@ -27,18 +27,38 @@ class FieldMeta;
 struct FilterObj
 {
   bool  is_attr;
+  bool  right_is_list;
+  bool  is_null;
   Field field;
   Value value;
+  std::vector<Value> values;
+
+  void init_null(){
+    is_null = true;
+    right_is_list = false;
+    is_attr = false;
+  }
 
   void init_attr(const Field &field)
   {
     is_attr     = true;
+    right_is_list = false;
+    is_null = false;
     this->field = field;
+  }
+
+  void init_values(std::vector<Value> value_list){
+    right_is_list = true;
+    is_attr = false;
+    is_null = false;
+    values = value_list;
   }
 
   void init_value(const Value &value)
   {
     is_attr     = false;
+    right_is_list = false;
+    is_null = false;
     this->value = value;
   }
 };

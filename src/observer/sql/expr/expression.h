@@ -42,6 +42,8 @@ enum class ExprType
 
   FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
   VALUE,        ///< 常量值
+  VALUELIST,    ///< 常量值列表
+  NULLTYPE,     ///< 空值
   CAST,         ///< 需要做类型转换的表达式
   COMPARISON,   ///< 需要做比较的表达式
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
@@ -240,6 +242,40 @@ public:
 
 private:
   Value value_;
+};
+
+class NullExpr : public Expression {
+
+public:
+  NullExpr() = default;
+  virtual ~NullExpr() = default;
+
+  RC get_value(const Tuple &tuple, Value &value) const {return RC::UNIMPLEMENTED;}
+  RC get_column(Chunk &chunk, Column &column) {return RC::UNIMPLEMENTED;}
+  RC try_get_value(Value &value) const {return RC::UNIMPLEMENTED;}
+
+  ExprType type() const override { return ExprType::NULLTYPE; }
+  AttrType value_type() const override { return AttrType::UNDEFINED; }
+};
+
+class ValueListExpr : public Expression {
+public:
+  ValueListExpr() = default;
+  explicit ValueListExpr(const std::vector<Value> &values) : values_(values) {}
+
+  virtual ~ValueListExpr() = default;
+
+  RC get_value(const Tuple &tuple, Value &value) const override{
+    return RC::UNIMPLEMENTED;
+  }
+  ExprType type() const override { return ExprType::VALUELIST; }
+  AttrType value_type() const override { return values_[0].attr_type(); }
+  int      value_length() const override { return values_.size(); }
+
+  const std::vector<Value> &get_value() const { return values_; }
+
+private:
+  std::vector<Value> values_;
 };
 
 /**

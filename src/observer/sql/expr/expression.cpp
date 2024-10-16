@@ -201,6 +201,41 @@ RC ComparisonExpr::try_get_value(Value &cell) const
     }
     return rc;
   }
+  if(left_->type() == ExprType::VALUE && right_->type() == ExprType::VALUELIST){
+    ValueExpr *  left_value_expr  = static_cast<ValueExpr *>(left_.get());
+    ValueListExpr *  right_value_expr = static_cast<ValueListExpr *>(right_.get());
+    const Value &left_cell        = left_value_expr->get_value();
+    std::vector<Value> right_value_list       = right_value_expr->get_value();
+    bool result = false;
+    RC rc = RC::SUCCESS;
+    if(comp_ == EXISTS_OP){
+      result = right_value_list.size() > 0;
+    }else if(comp_ == NOT_EXISTS_OP){
+      result = right_value_list.size() == 0;
+    }else if(comp_ == IN_OP){
+      for(auto right_value : right_value_list){
+        int com_result = left_cell.compare(right_value);
+        result = (com_result == 0);
+        if(result){
+          break;
+        }
+    }
+    }else if(comp_ == NOT_IN_OP){
+      result = true;
+      for(auto right_value : right_value_list){
+        int com_result = left_cell.compare(right_value);
+        result = (com_result != 0);
+        if(result == false){
+          break;
+        }
+      }
+    }else{
+      LOG_WARN("failed to compare tuple cells. comp_op error");
+      return RC::INVALID_ARGUMENT;
+    }
+    cell.set_boolean(result);
+    return rc;
+  }
 
   return RC::INVALID_ARGUMENT;
 }
@@ -209,25 +244,57 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
   Value left_value;
   Value right_value;
-
-  RC rc = left_->get_value(tuple, left_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-    return rc;
-  }
-  rc = right_->get_value(tuple, right_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-    return rc;
-  }
-
   bool bool_value = false;
-
-  rc = compare_value(left_value, right_value, bool_value);
-  if (rc == RC::SUCCESS) {
-    value.set_boolean(bool_value);
+  RC rc = RC::SUCCESS;
+  if(comp_ == EXISTS_OP){
+    bool_value =  right_->value_length() > 0;
+  }else if(comp_ == NOT_EXISTS_OP){
+    bool_value =  right_->value_length() == 0;
+  }else if(comp_ == IN_OP || comp_ == NOT_IN_OP){
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    ValueListExpr *  right_value_expr = static_cast<ValueListExpr *>(right_.get());
+    std::vector<Value> right_value_list       = right_value_expr->get_value();
+    if(comp_ == IN_OP){
+      for(auto right_value_item : right_value_list){
+        int com_result = left_value.compare(right_value_item);
+        bool_value = (com_result == 0);
+        if(bool_value){
+          break;
+        }
+      }
+    }else{
+      bool_value = true;
+      for(auto right_value_item : right_value_list){
+        int com_result = left_value.compare(right_value_item);
+        bool_value = (com_result != 0);
+        if(!bool_value){
+          break;
+        }
+      }
+    }
+  }else{
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    rc = right_->get_value(tuple, right_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    rc = compare_value(left_value, right_value, bool_value);
+    if (rc == RC::SUCCESS) {
+      value.set_boolean(bool_value);
+    }
   }
+  value.set_boolean(bool_value);
   return rc;
+  
 }
 
 RC ComparisonExpr::eval(Chunk &chunk, std::vector<uint8_t> &select)

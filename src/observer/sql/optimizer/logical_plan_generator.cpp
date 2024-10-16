@@ -161,18 +161,22 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
   std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *>    &filter_units = filter_stmt->filter_units();
   for (const FilterUnit *filter_unit : filter_units) {
-    const FilterObj &filter_obj_left  = filter_unit->left();
-    const FilterObj &filter_obj_right = filter_unit->right();
+    const FilterObj &filter_obj_left  = filter_unit->left(); //获取左filter_obj
+    const FilterObj &filter_obj_right = filter_unit->right(); //获取右filter_obj
 
     unique_ptr<Expression> left(filter_obj_left.is_attr
                                     ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
+                                    : filter_obj_left.is_null 
+                                    ? static_cast<Expression *>(new NullExpr())
                                     : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
 
     unique_ptr<Expression> right(filter_obj_right.is_attr
                                      ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
-                                     : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
-
-    if (left->value_type() != right->value_type()) {
+                                     : filter_obj_right.right_is_list ? static_cast<Expression *>(new ValueListExpr(filter_obj_right.values)) 
+                                     :static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
+    if(left->type() == ExprType::NULLTYPE){
+      // not need process
+    }else if (left->value_type() != right->value_type()) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
       if (left_to_right_cost < right_to_left_cost && left_to_right_cost != INT32_MAX) {
