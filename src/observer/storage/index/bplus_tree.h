@@ -85,9 +85,9 @@ public:
     common::Bitmap r_map(const_cast<char *>(v2), attr_length_[0] * 8);
     for (size_t i = 1; i < attr_type_.size(); i++) {
       // NULL get_bit 是true
-      if (l_map.get_bit(field_id_[i]) == true || r_map.get_bit(field_id_[i]) == true) {
-        return -1;
-      }
+      // if (l_map.get_bit(field_id_[i]) == true || r_map.get_bit(field_id_[i]) == true) {
+      //   return -1;
+      // }
       switch (attr_type_[i]) {
         case AttrType::INTS:
         case AttrType::DATES: {
