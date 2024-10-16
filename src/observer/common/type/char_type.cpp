@@ -49,7 +49,7 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
   return RC::SUCCESS;
 }
 
-int CharType::cast_cost(AttrType type)
+int CharType::cast_cost(AttrType type) const
 {
   if (type == AttrType::CHARS) {
     return 0;
