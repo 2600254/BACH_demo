@@ -80,10 +80,11 @@ public:
     int cmp_res = 0;
     // 第一列是bitmap，比较时应该跳过它
     // 这里认为NULL比任何值都大，放在B+树的最右边
-    int            offset = attr_length_[0];
+    int            offset = attr_type_.size() > 1 ? attr_length_[0] : 0;
+    // int            offset = 0;
     common::Bitmap l_map(const_cast<char *>(v1), attr_length_[0] * 8);
     common::Bitmap r_map(const_cast<char *>(v2), attr_length_[0] * 8);
-    for (size_t i = 1; i < attr_type_.size(); i++) {
+    for (size_t i =  attr_type_.size() > 1 ? 1 : 0 ; i < attr_type_.size(); i++) {
       // NULL get_bit 是true
       // if (l_map.get_bit(field_id_[i]) == true || r_map.get_bit(field_id_[i]) == true) {
       //   return -1;
