@@ -1815,8 +1815,16 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
   }
   char *key = static_cast<char *>(pkey.get());
 
+  // memcpy(key, user_key, file_header_.attr_length[0]);
+  // memcpy(key + file_header_.attr_length[0], rid, sizeof(*rid));
+
+  int offset = file_header_.attr_length[0];
   memcpy(key, user_key, file_header_.attr_length[0]);
-  memcpy(key + file_header_.attr_length[0], rid, sizeof(*rid));
+  for (int i = 1; i < file_header_.attr_num; i++) {
+    memcpy(key + offset, user_key + file_header_.attr_offset[i], file_header_.attr_length[i]);
+    offset += file_header_.attr_length[i];
+  }
+  memcpy(key + offset, rid, sizeof(*rid));
 
   BplusTreeOperationType op = BplusTreeOperationType::DELETE;
 
