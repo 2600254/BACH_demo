@@ -1506,8 +1506,15 @@ MemPoolItem::item_unique_ptr BplusTreeHandler::make_key(const char *user_key, co
     LOG_WARN("Failed to alloc memory for key.");
     return nullptr;
   }
+  int offset = file_header_.attr_length[0];
   memcpy(static_cast<char *>(key.get()), user_key, file_header_.attr_length[0]);
-  memcpy(static_cast<char *>(key.get()) + file_header_.attr_length[0], &rid, sizeof(rid));
+  for (int i = 1; i < file_header_.attr_num; i++) {
+    memcpy(static_cast<char *>(key.get()) + offset, user_key + file_header_.attr_offset[i], file_header_.attr_length[i]);
+    offset += file_header_.attr_length[i];
+  }
+  // memcpy(static_cast<char *>(key.get()) + file_header_.attr_length[0], &rid, sizeof(rid));
+  memcpy(static_cast<char *>(key.get()) + offset, &rid, sizeof(rid));
+  
   return key;
 }
 

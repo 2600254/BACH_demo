@@ -304,11 +304,16 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   // 复制所有字段的值
   int   record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
-  memset(record_data, 0, record_size);
+
+  const FieldMeta* null_field = table_meta_.null_field();
+  common::Bitmap null_bitmap(record_data + null_field->offset(), table_meta_.field_num());
+  null_bitmap.clear_bits();
+  // memset(record_data, 0, record_size);
 
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value     &value = values[i];
+
     if (field->type() != value.attr_type()) {
       Value real_value;
       rc = Value::cast_to(value, field->type(), real_value);

@@ -322,3 +322,7 @@ void TableMeta::desc(std::ostream &os) const
   }
   os << ')' << std::endl;
 }
+
+ const FieldMeta    *TableMeta::null_field()  const{
+   return &fields_[0];
+ }
