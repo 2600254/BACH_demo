@@ -85,7 +85,7 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
     const AttrInfoSqlNode &attr_info = attributes[i];
     // `i` is the col_id of fields[i]
     rc = fields_[i + sys_field_num].init(
-      attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i);
+      attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i+1);
     if (OB_FAIL(rc)) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;
@@ -273,7 +273,7 @@ int TableMeta::deserialize(std::istream &is)
   record_size_ = fields_.back().offset() + fields_.back().len() - fields_.begin()->offset();
 
   for (const FieldMeta &field_meta : fields_) {
-    if (!field_meta.visible()) {
+    if (!field_meta.visible() && field_meta.type() != AttrType::CHARS) {
       trx_fields_.push_back(field_meta); // 字段加上trx标识更好
     }
   }
