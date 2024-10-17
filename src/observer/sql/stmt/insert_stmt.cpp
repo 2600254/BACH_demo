@@ -54,31 +54,11 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     const AttrType field_type = field_meta->type();
     const AttrType value_type = values[i].attr_type();
     
-    if (field_type != value_type) {  
-      if (AttrType::TEXTS == field_type && AttrType::CHARS == value_type) {
-        if (MAX_TEXT_LENGTH < values[i].length()) {
-          LOG_WARN("Text length:%d, over max_length 65535", values[i].length());
-          return RC::INVALID_ARGUMENT;
-        }
-      } else {
-        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
-          table_name, field_meta->name(), field_type, value_type);
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-      }
-    }
-    if(field_type == AttrType::CHARS && values[i].length() > field_meta->len()){
-        return RC::INVALID_ARGUMENT;
-    }
-    if(field_type == AttrType::CHARS) {
-      if (values[i].length() > field_meta->len()) {
+    if (AttrType::TEXTS == field_type && AttrType::CHARS == value_type) {
+      if (MAX_TEXT_LENGTH < values[i].length()) {
+        LOG_WARN("Text length:%d, over max_length 65535", values[i].length());
         return RC::INVALID_ARGUMENT;
       }
-
-      char *char_value = (char*)malloc(field_meta->len());
-      memset(char_value, 0, field_meta->len());
-      memcpy(char_value, values[i].data(), values[i].length());
-      const_cast<Value*>(values)[i].set_data(char_value, field_meta->len());
-      free(char_value);
     }
   }
 

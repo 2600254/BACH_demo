@@ -58,22 +58,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt) {
   
   bool valid = false;
   if (nullptr != field) {
-    if (field->type() == value->attr_type()) {
-      if (field->type() == AttrType::CHARS 
-            && field->len() < value->length()) {
-        LOG_WARN("update chars with longer length");
-      } else {
-        valid = true;
-      }
-      // 将不确定长度的 char 改为固定长度的 char
-      if (AttrType::CHARS == field->type()) {
-        char *char_value = (char*)malloc(field->len());
-        memset(char_value, 0, field->len());
-        memcpy(char_value, value->data(), value->length());
-        const_cast<UpdateSqlNode*>(&update_sql)->value.set_data(char_value, field->len());
-        free(char_value);
-      }        
-    } else if (AttrType::TEXTS == field->type() && AttrType::CHARS == value->attr_type()) {
+    if (AttrType::TEXTS == field->type() && AttrType::CHARS == value->attr_type()) {
       if (MAX_TEXT_LENGTH < value->length()) {
         LOG_WARN("Text length:%d, over max_length 65535", value->length());
         return RC::INVALID_ARGUMENT;
