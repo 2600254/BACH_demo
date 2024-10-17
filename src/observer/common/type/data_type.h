@@ -88,11 +88,9 @@ public:
    */
   virtual int cast_cost(AttrType type) const
   {
-    LOG_INFO("cast_cost to:%s", attr_type_to_string(type));
     if (type == attr_type_) {
       return 0;
     }
-    LOG_INFO("cast_cost to:%s", attr_type_to_string(type));
     return INT32_MAX;
   }
 
