@@ -70,9 +70,9 @@ RC UpdatePhysicalOperator::next()
 
   PhysicalOperator *child = children_[0].get();
   while (RC::SUCCESS == (rc = child->next())) {
-    if (invalid_) {  // 子查询结果为多行
-      return RC::INVALID_ARGUMENT;
-    }
+    // if (invalid_) {  // 子查询结果为多行
+    //   return RC::INVALID_ARGUMENT;
+    // }
 
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
@@ -141,7 +141,11 @@ RC UpdatePhysicalOperator::construct_new_record(Record &old_record, Record &new_
     common::Bitmap   new_null_bitmap(tmp_record_data_ + null_field->offset(), table_->table_meta().field_num());
 
     new_null_bitmap.clear_bit(fields_id_[c_idx]);
-    memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());
+    if (AttrType::CHARS == field_meta.type()) {
+      memcpy(tmp_record_data_ + field_meta.offset(), value->data(), value->length() + 1);
+    } else {
+      memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());
+    }
     old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());
   }
   // 比较整行数据
