@@ -28,25 +28,25 @@ class FilterStmt;
 class UpdateStmt : public Stmt
 {
 public:
-  UpdateStmt(Table *table, Value *value, FieldMeta *field, FilterStmt *filter_stmt);
+  UpdateStmt(Table *table, std::vector<Value> &&values, std::vector<FieldMeta> fields, FilterStmt *filter_stmt);
   ~UpdateStmt() override;
 
-
 public:
-
   StmtType type() const override { return StmtType::UPDATE; }
 
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table *table() const { return table_; }
-  Value *value() const { return value_; }
-  FieldMeta *field() const { return field_; }
-  FilterStmt *filter_stmt() const { return filter_stmt_; }
+  Table                  *table() const { return table_; }
+  std::vector<Value>     values() const { return values_; }
+  std::vector<FieldMeta> fields() const { return fields_; }
+  FilterStmt             *filter_stmt() const { return filter_stmt_; }
 
 private:
-  Table *table_        = nullptr;
-  Value    *value_ = nullptr;           // 更新的值，仅支持一个字段
-  FieldMeta *field_ = nullptr; // 更新的字段，仅支持一个字段
-  FilterStmt* filter_stmt_ = nullptr; // 过滤条件
+  Table *table_ = nullptr;
+
+  std::vector<Value>     values_;
+  std::vector<FieldMeta> fields_;
+
+  FilterStmt *filter_stmt_ = nullptr;  // 过滤条件
 };

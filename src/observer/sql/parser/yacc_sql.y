@@ -12,6 +12,7 @@
 #include "sql/parser/yacc_sql.hpp"
 #include "sql/parser/lex_sql.h"
 #include "sql/expr/expression.h"
+#include "common/type/date_type.h"
 
 using namespace std;
 
@@ -132,6 +133,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   AttrInfoSqlNode *                          attr_info;
   Expression *                               expression;
   std::vector<std::unique_ptr<Expression>> * expression_list;
+  UpdateKV *                                 update_kv;
+  std::vector<UpdateKV> *                    update_kv_list;
   std::vector<Value> *                       value_list;
   std::vector<ConditionSqlNode> *            condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
@@ -147,6 +150,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %token <string> ID
 %token <string> SSS
 %token <string> AGGR
+%token <string> DATE_STR
 
 //非终结符
 
@@ -169,6 +173,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
+%type <update_kv_list>      update_kv_list
+%type <update_kv>           update_kv
 %type <string>              aggre_type
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -452,6 +458,22 @@ value:
       $$ = new Value((float)$1);
       @$ = @1;
     }
+    |DATE_STR {
+      char *tmp = common::substr($1,1,strlen($1)-2);
+      std::string str(tmp);
+      Value * value = new Value();
+      int date;
+      if(string_to_date(str,date) < 0) {
+        yyerror(&@$,sql_string,sql_result,scanner,"date invaid");
+        YYERROR;
+      }
+      else
+      {
+        value->set_date(date);
+      }
+      $$ = value;
+      free(tmp);
+    }
     |SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);
       $$ = new Value(tmp);
@@ -483,20 +505,53 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where 
+    UPDATE ID SET update_kv update_kv_list where 
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
+      $$->update.attribute_names.emplace_back($4->attr_name);
+      $$->update.values.emplace_back($4->value);
+      if ($5 != nullptr) {
+        for (UpdateKV kv : *$5) {
+          $$->update.attribute_names.emplace_back(kv.attr_name);
+          $$->update.values.emplace_back(kv.value);
+        }
+        delete $5;
+      }
+      if ($6!= nullptr) {
+        $$->update.conditions.swap(*$6);
+        delete $6;
       }
       free($2);
-      free($4);
     }
     ;
+
+update_kv_list:
+    {
+      $$ = nullptr;
+    }
+    | COMMA update_kv update_kv_list
+    {
+      if ($3!= nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<UpdateKV>;
+      }
+      $$->emplace_back(*$2);
+      delete $2;
+    }
+    ;
+
+update_kv:
+    ID EQ value
+    {
+      $$ = new UpdateKV;
+      $$->attr_name = $1;
+      $$->value = *$3;
+      free($1);
+    }
+    ;
+
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM rel_list where group_by
     {

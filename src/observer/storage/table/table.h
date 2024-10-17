@@ -93,6 +93,7 @@ public:
   RC delete_record(const Record &record);
   RC delete_record(const RID &rid);
   RC update_record(const Record &record, FieldMeta *field, const Value &value);
+  RC update_record(Record &old_record, Record &new_record);
   RC get_record(const RID &rid, Record &record);
 
   RC recover_insert_record(Record &record);

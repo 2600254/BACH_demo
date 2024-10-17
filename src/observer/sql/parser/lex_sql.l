@@ -144,6 +144,7 @@ UNIQUE                                  RETURN_TOKEN(UNIQUE);
 "-" |
 "*" |
 "/"                                     { return yytext[0]; }
+{QUOTE}([0-9]{4})\-([0-9]|[0-9]{2})\-([0-9]|[0-9]{2}){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 
