@@ -55,6 +55,36 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt) {
     LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_name.c_str());
     return RC::SCHEMA_FIELD_NOT_EXIST;
   }
+  
+  bool valid = false;
+  if (nullptr != field) {
+    if (field->type() == value->attr_type()) {
+      if (field->type() == AttrType::CHARS 
+            && field->len() < value->length()) {
+        LOG_WARN("update chars with longer length");
+      } else {
+        valid = true;
+      }
+      // 将不确定长度的 char 改为固定长度的 char
+      if (AttrType::CHARS == field->type()) {
+        char *char_value = (char*)malloc(field->len());
+        memset(char_value, 0, field->len());
+        memcpy(char_value, value->data(), value->length());
+        const_cast<UpdateSqlNode*>(&update_sql)->value.set_data(char_value, field->len());
+        free(char_value);
+      }        
+    } else if (AttrType::TEXTS == field->type() && AttrType::CHARS == value->attr_type()) {
+      if (MAX_TEXT_LENGTH < value->length()) {
+        LOG_WARN("Text length:%d, over max_length 65535", value->length());
+        return RC::INVALID_ARGUMENT;
+      }
+      valid = true;
+    }
+  }
+  if (!valid) {
+    LOG_WARN("update field type mismatch. table=%s", table_name);
+    return RC::INVALID_ARGUMENT;
+  }
 
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(
