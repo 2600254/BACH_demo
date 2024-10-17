@@ -92,8 +92,7 @@ RC UpdatePhysicalOperator::next()
         return rc2;
       }
     }
-    // rc = table_->update_record(record, new_record);
-    rc = trx_->update_record(table_, new_record, &fields_meta_[0], values_[0]);
+    rc = table_->update_record(record, new_record);
     if (rc != RC::SUCCESS) {
       // 更新失败，需要回滚之前成功的record
       LOG_WARN("failed to update record: %s", strrc(rc));
@@ -186,4 +185,10 @@ RC UpdatePhysicalOperator::construct_old_record(Record &updated_record, Record &
   return rc;
 }
 
-RC UpdatePhysicalOperator::close() { return RC::SUCCESS; }
+RC UpdatePhysicalOperator::close()
+{
+  if (!children_.empty()) {
+    children_[0]->close();
+  }
+  return RC::SUCCESS;
+}
