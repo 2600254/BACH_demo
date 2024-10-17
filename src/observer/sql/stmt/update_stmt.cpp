@@ -63,8 +63,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt) {
         LOG_WARN("Text length:%d, over max_length 65535", value->length());
         return RC::INVALID_ARGUMENT;
       }
-      valid = true;
     }
+    valid = true;
   }
   if (!valid) {
     LOG_WARN("update field type mismatch. table=%s", table_name);
