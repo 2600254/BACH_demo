@@ -122,6 +122,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NE
         NOT
         LIKE
+        ORDER
+        ASC
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -139,6 +141,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   std::vector<RelAttrSqlNode> *              rel_attr_list;
   InnerJoinSqlNode *                inner_joins;
   std::vector<InnerJoinSqlNode> *   inner_joins_list;
+  OrderBySqlNode*                   orderby_unit;
+  std::vector<OrderBySqlNode> *     orderby_unit_list;
   char *                                     string;
   int                                        number;
   float                                      floats;
@@ -171,6 +175,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
+%type <orderby_unit>        sort_unit
+%type <orderby_unit_list>   sort_list
+%type <orderby_unit_list>   opt_order_by
 %type <string>              aggre_type
 %type <sql_node>            calc_stmt
 %type <sql_node>            select_stmt
@@ -513,7 +520,7 @@ join_list:
     ;
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM from_node from_list where group_by
+    SELECT expression_list FROM from_node from_list where group_by opt_order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -535,6 +542,11 @@ select_stmt:        /*  select 语句的语法解析树*/
       if ($7 != nullptr) {
         $$->selection.group_by.swap(*$7);
         delete $7;
+      }
+
+      if ($8 != nullptr) {
+        $$->selection.orderbys.swap(*$8);
+        delete $8;
       }
 
       delete $4;
@@ -723,6 +735,54 @@ group_by:
       $$ = $3;
     }
     ;
+
+sort_unit:
+	expression
+	{
+    $$ = new OrderBySqlNode();//默认是升序
+    $$->expr = $1;
+    $$->is_asc = true;
+	}
+	|
+	expression DESC
+	{
+    $$ = new OrderBySqlNode();
+    $$->expr = $1;
+    $$->is_asc = false;
+	}
+	|
+	expression ASC
+	{
+    $$ = new OrderBySqlNode();//默认是升序
+    $$->expr = $1;
+    $$->is_asc = true;
+	}
+	;
+sort_list:
+	sort_unit
+	{
+    $$ = new std::vector<OrderBySqlNode>;
+    $$->emplace_back(*$1);
+    delete $1;
+	}
+  |
+	sort_unit COMMA sort_list
+	{
+    $3->emplace_back(*$1);
+    $$ = $3;
+    delete $1;
+	}
+	;
+opt_order_by:
+	/* empty */ {
+   $$ = nullptr;
+  }
+	| ORDER BY sort_list
+	{
+      $$ = $3;
+      std::reverse($$->begin(),$$->end());
+	}
+	;
 load_data_stmt:
     LOAD DATA INFILE SSS INTO TABLE ID 
     {

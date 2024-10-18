@@ -22,7 +22,10 @@ using namespace std;
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  if(is_first_)
+    return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value, const_cast<int&>(index_));
+  else
+    return tuple.cell_at(index_,value);
 }
 
 bool FieldExpr::equal(const Expression &other) const
@@ -612,7 +615,8 @@ unique_ptr<Aggregator> AggregateExpr::create_aggregator() const
 
 RC AggregateExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  return tuple.find_cell(TupleCellSpec(name()), value);
+  int index = 0;
+  return tuple.find_cell(TupleCellSpec(name()), value, index);
 }
 
 RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &type)
