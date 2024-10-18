@@ -60,9 +60,9 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
       return RC::SCHEMA_FIELD_NOT_EXIST;
     } else {
       // bool valid = false;
-      if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == values[i].attr_type()) {
-        if (MAX_TEXT_LENGTH < values[i].length()) {
-          LOG_WARN("Text length:%d, over max_length 65535", values[i].length());
+      if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == update_sql.values[i].attr_type()) {
+        if (MAX_TEXT_LENGTH < update_sql.values[i].length()) {
+          LOG_WARN("Text length:%d, over max_length 65535", update_sql.values[i].length());
           return RC::INVALID_ARGUMENT;
         }
         // valid = true;

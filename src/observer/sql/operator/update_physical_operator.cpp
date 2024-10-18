@@ -92,7 +92,9 @@ RC UpdatePhysicalOperator::next()
         return rc2;
       }
     }
+    LOG_INFO("update record:");
     rc = table_->update_record(record, new_record);
+    LOG_INFO("update record end");
     if (rc != RC::SUCCESS) {
       // 更新失败，需要回滚之前成功的record
       LOG_WARN("failed to update record: %s", strrc(rc));
@@ -143,7 +145,12 @@ RC UpdatePhysicalOperator::construct_new_record(Record &old_record, Record &new_
     new_null_bitmap.clear_bit(fields_id_[c_idx]);
     if (AttrType::CHARS == field_meta.type()) {
       memcpy(tmp_record_data_ + field_meta.offset(), value->data(), value->length() + 1);
-    } else {
+    } else if (AttrType::TEXTS == field_meta.type()){
+      int64_t position[2];
+      position[1] = value->length();
+      table_->text_buffer_pool_->append_data(position[0], position[1], value->data());
+      memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));
+    }else {
       memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());
     }
     old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());

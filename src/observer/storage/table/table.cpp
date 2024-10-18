@@ -499,6 +499,8 @@ RC Table::init_text_handler(const char *base_dir)
     RC                 rc  = bpm.open_file(db_->log_handler(), text_file.c_str(), text_buffer_pool_);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to open disk buffer pool for file:%s. rc=%d:%s", text_file.c_str(), rc, strrc(rc));
+      text_buffer_pool_->close_file();
+      text_buffer_pool_ = nullptr;
       return rc;
     }
   }
