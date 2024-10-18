@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/memory.h"
 #include "common/lang/string.h"
 #include "common/rc.h"
+#include "common/log/log.h"
 #include "common/type/attr_type.h"
 
 class Value;
@@ -85,7 +86,7 @@ public:
   /**
    * @brief 计算从 type 到 attr_type 的隐式转换的 cost，如果无法转换，返回 INT32_MAX
    */
-  virtual int cast_cost(AttrType type)
+  virtual int cast_cost(AttrType type) const
   {
     if (type == attr_type_) {
       return 0;

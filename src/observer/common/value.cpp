@@ -27,6 +27,8 @@ Value::Value(float val) { set_float(val); }
 
 Value::Value(bool val) { set_boolean(val); }
 
+Value::Value(int64_t val) { set_boolean(val); }
+
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
 Value::Value(const Value &other)
@@ -122,6 +124,10 @@ void Value::set_data(char *data, int length)
       value_.int_value_ = *(int *)data;
       length_           = length;
     } break;
+    case AttrType::LONGS: {
+      value_.long_ = *(int64_t *)data;
+      length_ = length;
+    } break;
     case AttrType::FLOATS: {
       value_.float_value_ = *(float *)data;
       length_             = length;
@@ -159,6 +165,15 @@ void Value::set_float(float val)
   value_.float_value_ = val;
   length_             = sizeof(val);
 }
+
+void Value::set_long(int64_t val)
+{
+  reset();
+  attr_type_ = AttrType::LONGS;
+  value_.long_ = val;
+  length_ = sizeof(int64_t);
+}
+
 void Value::set_boolean(bool val)
 {
   reset();
@@ -301,6 +316,11 @@ float Value::get_float() const
     }
   }
   return 0;
+}
+
+int64_t Value::get_long() const
+{
+  return value_.long_;
 }
 
 string Value::get_string() const { return this->to_string(); }

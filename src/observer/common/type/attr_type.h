@@ -10,6 +10,8 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <string>
+
 /**
  * @brief 属性的类型
  * @details AttrType 枚举列出了属性的各种数据类型。
@@ -22,6 +24,8 @@ enum class AttrType
   DATES,     ///< 日期类型
   FLOATS,    ///< 浮点数类型(4字节)
   BOOLEANS,  ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
+  LONGS,          ///< Int64
+  TEXTS,          ///< text类型，最大65535字节
   MAXTYPE,   ///< 请在 UNDEFINED 与 MAXTYPE 之间增加新类型
 };
 

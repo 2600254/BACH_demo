@@ -58,10 +58,25 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     if (update_field == nullptr) {
       LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_names[i].c_str());
       return RC::SCHEMA_FIELD_NOT_EXIST;
+    } else {
+      // bool valid = false;
+      if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == values[i].attr_type()) {
+        if (MAX_TEXT_LENGTH < values[i].length()) {
+          LOG_WARN("Text length:%d, over max_length 65535", values[i].length());
+          return RC::INVALID_ARGUMENT;
+        }
+        // valid = true;
+      }
+      // if (!valid) {
+      //   LOG_WARN("update field type mismatch. table=%s", table_name);
+      //   return RC::INVALID_ARGUMENT;
+      // }
     }
     fields.emplace_back(*update_field);
     values.emplace_back(update_sql.values[i]);
   }
+
+
 
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(

@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/expression.h"
 #include "sql/operator/logical_operator.h"
 #include "sql/operator/table_get_logical_operator.h"
+#include "sql/operator/join_logical_operator.h"
 
 RC PredicatePushdownRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
 {
@@ -29,23 +30,33 @@ RC PredicatePushdownRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bo
     return rc;
   }
 
-  std::unique_ptr<LogicalOperator> &child_oper = oper->children().front();
-  if (child_oper->type() != LogicalOperatorType::TABLE_GET) {
-    return rc;
-  }
-
-  auto table_get_oper = static_cast<TableGetLogicalOperator *>(child_oper.get());
-
   std::vector<std::unique_ptr<Expression>> &predicate_oper_exprs = oper->expressions();
   if (predicate_oper_exprs.size() != 1) {
     return rc;
   }
 
   std::unique_ptr<Expression>             &predicate_expr = predicate_oper_exprs.front();
-  std::vector<std::unique_ptr<Expression>> pushdown_exprs;
-  rc = get_exprs_can_pushdown(predicate_expr, pushdown_exprs);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get exprs can pushdown. rc=%s", strrc(rc));
+  std::unique_ptr<LogicalOperator> &child_oper = oper->children().front();
+  if (child_oper->type() == LogicalOperatorType::TABLE_GET) {
+    auto table_get_oper = static_cast<TableGetLogicalOperator *>(child_oper.get());
+
+    std::vector<std::unique_ptr<Expression>> pushdown_exprs;
+    rc = get_exprs_can_pushdown(predicate_expr, pushdown_exprs);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get exprs can pushdown. rc=%s", strrc(rc));
+      return rc;
+    }
+
+    if (!pushdown_exprs.empty()) {
+      change_made = true;
+      table_get_oper->set_predicates(std::move(pushdown_exprs));
+    }
+  } else if (child_oper->type() == LogicalOperatorType::JOIN) {
+    // auto join_oper = static_cast<JoinLogicalOperator *>(child_oper.get());
+    // 直接下推 JOIN 算子的左右两边有可能是 table_get 有可能是 join 有可能是 predicate
+    // 是 table_get 的话就直接下推到 table_get 中
+    // 否则就新构建一个 predicate logical operator 挂在 join 或者 predicate 上面
+    // 两边都不是 table_get 的时候不进行下推 TODO(wbj) 此时仍然是有下推机会的
     return rc;
   }
 
@@ -58,10 +69,6 @@ RC PredicatePushdownRewriter::rewrite(std::unique_ptr<LogicalOperator> &oper, bo
     predicate_expr = std::unique_ptr<Expression>(new ValueExpr(value));
   }
 
-  if (!pushdown_exprs.empty()) {
-    change_made = true;
-    table_get_oper->set_predicates(std::move(pushdown_exprs));
-  }
   return rc;
 }
 

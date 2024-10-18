@@ -10,27 +10,22 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include "common/rc.h"
-#include "common/type/data_type.h"
+#include <vector>
+#include "sql/optimizer/rewrite_rule.h"
 
 /**
- * @brief 固定长度的字符串类型
- * @ingroup DataType
+ * @brief 将父子关系的谓词合并成一个
+ * @ingroup Rewriter
+ * @details 使得能够用其他规则
  */
-class CharType : public DataType
+class PredicateMergeRewriter : public RewriteRule 
 {
 public:
-  CharType() : DataType(AttrType::CHARS) {}
+  PredicateMergeRewriter() = default;
+  virtual ~PredicateMergeRewriter() = default;
 
-  virtual ~CharType() = default;
+  RC rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made) override;
 
-  int compare(const Value &left, const Value &right) const override;
-
-  RC cast_to(const Value &val, AttrType type, Value &result) const override;
-
-  RC set_value_from_str(Value &val, const string &data) const override;
-
-  int cast_cost(AttrType type) const override;
-
-  RC to_string(const Value &val, string &result) const override;
+private:
+  RC merge(std::unique_ptr<Expression>& source, std::unique_ptr<Expression>& target);
 };

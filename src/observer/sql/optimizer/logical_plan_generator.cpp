@@ -98,34 +98,75 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
 {
   unique_ptr<LogicalOperator> *last_oper = nullptr;
 
-  unique_ptr<LogicalOperator> table_oper(nullptr);
-  last_oper = &table_oper;
+  RC rc = RC::SUCCESS;
 
-  const std::vector<Table *> &tables = select_stmt->tables();
-  for (Table *table : tables) {
+  const std::vector<SelectStmt::JoinTables> &tables = select_stmt->join_tables();
 
+  auto process_one_table = [this](unique_ptr<LogicalOperator>& prev_oper, Table* table, FilterStmt* fu) {
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, ReadWriteMode::READ_ONLY));
-    if (table_oper == nullptr) {
-      table_oper = std::move(table_get_oper);
+    unique_ptr<LogicalOperator> predicate_oper;
+    if (nullptr != fu) {
+      if (RC rc = create_plan(fu, predicate_oper); rc != RC::SUCCESS) {
+        LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+        return rc;
+      }
+    }
+    if (prev_oper == nullptr) {
+      // ASSERT(nullptr == fu, "ERROR!");
+      if (predicate_oper) {
+        static_cast<TableGetLogicalOperator*>(table_get_oper.get())->set_predicates(std::move(predicate_oper->expressions()));
+      }
+      prev_oper = std::move(table_get_oper);
     } else {
-      JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-      join_oper->add_child(std::move(table_oper));
+      unique_ptr<JoinLogicalOperator> join_oper = std::make_unique<JoinLogicalOperator>();
+      join_oper->add_child(std::move(prev_oper));
       join_oper->add_child(std::move(table_get_oper));
-      table_oper = unique_ptr<LogicalOperator>(join_oper);
+      if (predicate_oper) {
+        predicate_oper->add_child(std::move(join_oper));
+        prev_oper = std::move(predicate_oper);
+      } else {
+        prev_oper = std::move(join_oper);
+      }
+    }
+    return RC::SUCCESS;
+  };
+
+  unique_ptr<LogicalOperator> outside_prev_oper(nullptr); // 笛卡尔积
+  for (auto& jt : tables) {
+    unique_ptr<LogicalOperator> prev_oper(nullptr); // INNER JOIN
+    auto& join_tables = jt.join_tables();
+    auto& on_conds = jt.on_conds();
+    ASSERT(join_tables.size() == on_conds.size(), "ERROR!");
+    for (size_t i = 0; i < join_tables.size(); ++i) {
+      if (rc = process_one_table(prev_oper, join_tables[i], on_conds[i]); RC::SUCCESS != rc) {
+        return rc;
+      }
+    }
+    // now combine outside_prev_oper and prev_oper
+    if (outside_prev_oper == nullptr) {
+      outside_prev_oper = std::move(prev_oper);
+    } else {
+      unique_ptr<JoinLogicalOperator> join_oper = std::make_unique<JoinLogicalOperator>();
+      join_oper->add_child(std::move(outside_prev_oper));
+      join_oper->add_child(std::move(prev_oper));
+      outside_prev_oper = std::move(join_oper);
     }
   }
 
+
   unique_ptr<LogicalOperator> predicate_oper;
 
-  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
+  rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
   if (OB_FAIL(rc)) {
     LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
     return rc;
   }
 
+  last_oper = &outside_prev_oper;
+
   if (predicate_oper) {
-    if (*last_oper) {
-      predicate_oper->add_child(std::move(*last_oper));
+    if (outside_prev_oper) {
+      predicate_oper->add_child(std::move(outside_prev_oper));
     }
 
     last_oper = &predicate_oper;
@@ -146,12 +187,12 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     last_oper = &group_by_oper;
   }
 
-  auto project_oper = make_unique<ProjectLogicalOperator>(std::move(select_stmt->query_expressions()));
+  unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(std::move(select_stmt->query_expressions())));
   if (*last_oper) {
     project_oper->add_child(std::move(*last_oper));
   }
 
-  logical_operator = std::move(project_oper);
+  logical_operator.swap(project_oper);
   return RC::SUCCESS;
 }
 
@@ -175,7 +216,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
     if (left->value_type() != right->value_type()) {
       auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
       auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
-      if (left_to_right_cost < right_to_left_cost && left_to_right_cost != INT32_MAX) {
+      if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
         ExprType left_type = left->type();
         auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
         if (left_type == ExprType::VALUE) {

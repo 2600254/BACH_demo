@@ -116,6 +116,9 @@ public:
    */
   RC visit_record(const RID &rid, function<bool(Record &)> visitor);
 
+  RC write_text(int64_t &offset, int64_t length, const char *data);
+  RC read_text(int64_t offset, int64_t length, char *data) const;
+
 public:
   int32_t     table_id() const { return table_meta_.table_id(); }
   const char *name() const;
@@ -133,6 +136,7 @@ private:
 
 private:
   RC init_record_handler(const char *base_dir);
+  RC init_text_handler(const char *base_dir);
 
 public:
   Index *find_index(const char *index_name) const;
@@ -144,5 +148,6 @@ private:
   TableMeta          table_meta_;
   DiskBufferPool    *data_buffer_pool_ = nullptr;  /// 数据文件关联的buffer pool
   RecordFileHandler *record_handler_   = nullptr;  /// 记录操作
+  DiskBufferPool *text_buffer_pool_ = nullptr;   /// text文件关联的buffer pool
   vector<Index *>    indexes_;
 };
