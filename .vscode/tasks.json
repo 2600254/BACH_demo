@@ -29,8 +29,14 @@
             "command": "cd ${workspaceFolder}/src/observer/sql/parser && bash gen_parser.sh"
         },
         {
+            "label": "clean",
+            "type": "shell",
+            "command": "rm -r ${workspaceFolder}/build_debug/miniob",
+        },
+        {
             "label": "build",
             "dependsOn": [
+                "clean",
                 "gen_parser",
                 "build_debug",
             ]
