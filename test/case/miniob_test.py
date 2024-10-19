@@ -1007,37 +1007,37 @@ def compile(work_dir: str, build_dir: str, cmake_args: str, make_args: str, rebu
 
   os.makedirs(build_path, exist_ok=True)
   
-  # _logger.info("start compiling ... build path=%s", build_path)
-  # ret, outputs = run_cmake(work_dir, build_path, cmake_args)
-  # if ret == False:
-  #   # cmake 执行失败时，清空整个Build目录，再重新执行一次cmake命令
-  #   shutil.rmtree(build_path)
-  #   os.makedirs(build_path, exist_ok=True)
-  #   ret, outputs = run_cmake(work_dir, build_path, cmake_args)
-  #   if ret == False:
-  #     for output in outputs:
-  #       _logger.error(output)
-  #       eval_result.append_message(output)
-  #     return False
+  _logger.info("start compiling ... build path=%s", build_path)
+  ret, outputs = run_cmake(work_dir, build_path, cmake_args)
+  if ret == False:
+    # cmake 执行失败时，清空整个Build目录，再重新执行一次cmake命令
+    shutil.rmtree(build_path)
+    os.makedirs(build_path, exist_ok=True)
+    ret, outputs = run_cmake(work_dir, build_path, cmake_args)
+    if ret == False:
+      for output in outputs:
+        _logger.error(output)
+        eval_result.append_message(output)
+      return False
 
-  # make_command = ["make", "--silent", "-C", build_path]
-  # if isinstance(make_args, str):
-  #   if not make_args:
-  #     make_command.append('-j4')
-  #   else:
-  #     args = make_args.split(';')
-  #     for arg in args:
-  #       arg = arg.strip()
-  #       if len(arg) > 0:
-  #         make_command.append(arg)
+  make_command = ["make", "--silent", "-C", build_path]
+  if isinstance(make_args, str):
+    if not make_args:
+      make_command.append('-j4')
+    else:
+      args = make_args.split(';')
+      for arg in args:
+        arg = arg.strip()
+        if len(arg) > 0:
+          make_command.append(arg)
 
-  # ret, outputs = __run_shell_command(make_command)
-  # if ret != 0:
-  #   _logger.error("Compile failed")
-  #   for output in outputs:
-  #     _logger.error(output.strip())
-  #     eval_result.append_message(output.strip())
-  #   return False
+  ret, outputs = __run_shell_command(make_command)
+  if ret != 0:
+    _logger.error("Compile failed")
+    for output in outputs:
+      _logger.error(output.strip())
+      eval_result.append_message(output.strip())
+    return False
 
   return True
 

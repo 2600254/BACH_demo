@@ -129,6 +129,7 @@ STORAGE                                 RETURN_TOKEN(STORAGE);
 FORMAT                                  RETURN_TOKEN(FORMAT);
 NOT                                     RETURN_TOKEN(NOT);
 LIKE                                    RETURN_TOKEN(LIKE);
+UNIQUE                                  RETURN_TOKEN(UNIQUE);
 INNER                                   RETURN_TOKEN(INNER);
 JOIN                                    RETURN_TOKEN(JOIN);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
@@ -148,6 +149,7 @@ JOIN                                    RETURN_TOKEN(JOIN);
 "-" |
 "*" |
 "/"                                     { return yytext[0]; }
+{QUOTE}([0-9]{4})\-([0-9]|[0-9]{2})\-([0-9]|[0-9]{2}){QUOTE} yylval->string=strdup(yytext); RETURN_TOKEN(DATE_STR);
 \"[^"]*\"                               yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 '[^']*\'                                yylval->string = strdup(yytext); RETURN_TOKEN(SSS);
 

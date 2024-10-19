@@ -372,6 +372,7 @@ RC RowRecordPageHandler::update_record(const RID &rid, const char *data)
     }
 
     RC rc = log_handler_.update_record(frame_, rid, data);
+    frame_->mark_dirty();
     if (OB_FAIL(rc)) {
       LOG_ERROR("Failed to update record. page_num %d:%d. rc=%s", 
                 disk_buffer_pool_->file_desc(), frame_->page_num(), strrc(rc));

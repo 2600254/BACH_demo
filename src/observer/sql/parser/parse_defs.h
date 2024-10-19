@@ -52,8 +52,8 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
-  LIKE_OP,      //"like"      
-  NOT_LIKE_OP,  //"not like"  
+  LIKE_OP,      //"like"
+  NOT_LIKE_OP,  //"not like"
   NO_OP
 };
 
@@ -154,11 +154,18 @@ struct DeleteSqlNode
  * @brief 描述一个update语句
  * @ingroup SQLParser
  */
+
+struct UpdateKV
+{
+  std::string attr_name;  ///< Relation to delete from
+  Value       value;
+};
+
 struct UpdateSqlNode
 {
-  std::string                   relation_name;   ///< Relation to update
-  std::string                   attribute_name;  ///< 更新的字段，仅支持一个字段
-  Value                         value;           ///< 更新的值，仅支持一个字段
+  std::string                   relation_name;  ///< Relation to update
+  std::vector<std::string>      attribute_names;
+  std::vector<Value>            values;
   std::vector<ConditionSqlNode> conditions;
 };
 
@@ -203,9 +210,11 @@ struct DropTableSqlNode
  */
 struct CreateIndexSqlNode
 {
-  std::string index_name;      ///< Index name
-  std::string relation_name;   ///< Relation name
-  std::string attribute_name;  ///< Attribute name
+  bool                     is_unique;       ///< 是否唯一索引
+  std::string              index_name;      ///< Index name
+  std::string              relation_name;   ///< Relation name
+  std::string              attribute_name;  ///< Attribute name
+  std::vector<std::string> attr_names;
 };
 
 /**
@@ -280,7 +289,7 @@ struct ErrorSqlNode
  * @brief 表示一个SQL语句的类型
  * @ingroup SQLParser
  */
-enum  SqlCommandFlag
+enum SqlCommandFlag
 {
   SCF_ERROR = 0,
   SCF_CALC,

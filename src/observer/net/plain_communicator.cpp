@@ -244,9 +244,9 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     rc = write_tuple_result(sql_result);
   }
 
-  if (OB_FAIL(rc)) {
-    return rc;
-  }
+  // if (OB_FAIL(rc)) {
+  //   return rc;
+  // }
 
   if (cell_num == 0) {
     // 除了select之外，其它的消息通常不会通过operator来返回结果，表头和行数据都是空的

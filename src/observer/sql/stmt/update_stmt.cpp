@@ -18,22 +18,23 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "sql/stmt/filter_stmt.h"
 
-UpdateStmt::UpdateStmt(Table *table, Value *value, FieldMeta *field, FilterStmt *filter_stmt)
-    : table_(table), value_(value), field_(field), filter_stmt_(filter_stmt)
+UpdateStmt::UpdateStmt(
+    Table *table, std::vector<Value> &&values, std::vector<FieldMeta> fields, FilterStmt *filter_stmt)
+    : table_(table), values_(values), fields_(fields), filter_stmt_(filter_stmt)
 {}
 
-
-UpdateStmt::~UpdateStmt(){
+UpdateStmt::~UpdateStmt()
+{
   if (filter_stmt_ != nullptr) {
     delete filter_stmt_;
     filter_stmt_ = nullptr;
   }
 }
 
-
-RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt) {
+RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
+{
   const char *table_name = update_sql.relation_name.c_str();
-  if ( db == nullptr || table_name == nullptr) {
+  if (db == nullptr || table_name == nullptr) {
     LOG_WARN("invalid argument. db=%p, table_name=%p",db, table_name);
     return RC::INVALID_ARGUMENT;
   }
@@ -48,28 +49,34 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt) {
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
 
-  Value *value = const_cast<Value*>(&update_sql.value);
-  const TableMeta &table_meta = table->table_meta();
-  FieldMeta *field = const_cast<FieldMeta*>(table_meta.field(update_sql.attribute_name.c_str()));
-  if (field == nullptr) {
-    LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_name.c_str());
-    return RC::SCHEMA_FIELD_NOT_EXIST;
-  }
-  
-  bool valid = false;
-  if (nullptr != field) {
-    if (AttrType::TEXTS == field->type() && AttrType::CHARS == value->attr_type()) {
-      if (MAX_TEXT_LENGTH < value->length()) {
-        LOG_WARN("Text length:%d, over max_length 65535", value->length());
-        return RC::INVALID_ARGUMENT;
+  std::vector<Value>     values;
+  std::vector<FieldMeta> fields;
+  const TableMeta       &table_meta = table->table_meta();
+
+  for (size_t i = 0; i < update_sql.attribute_names.size(); i++) {
+    FieldMeta *update_field = const_cast<FieldMeta *>(table_meta.field(update_sql.attribute_names[i].c_str()));
+    if (update_field == nullptr) {
+      LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_names[i].c_str());
+      return RC::SCHEMA_FIELD_NOT_EXIST;
+    } else {
+      // bool valid = false;
+      if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == update_sql.values[i].attr_type()) {
+        if (MAX_TEXT_LENGTH < update_sql.values[i].length()) {
+          LOG_WARN("Text length:%d, over max_length 65535", update_sql.values[i].length());
+          return RC::INVALID_ARGUMENT;
+        }
+        // valid = true;
       }
+      // if (!valid) {
+      //   LOG_WARN("update field type mismatch. table=%s", table_name);
+      //   return RC::INVALID_ARGUMENT;
+      // }
     }
-    valid = true;
+    fields.emplace_back(*update_field);
+    values.emplace_back(update_sql.values[i]);
   }
-  if (!valid) {
-    LOG_WARN("update field type mismatch. table=%s", table_name);
-    return RC::INVALID_ARGUMENT;
-  }
+
+
 
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(
@@ -80,6 +87,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt) {
   }
 
   // everything alright
-  stmt = new UpdateStmt(table, value, field, filter_stmt);
+  stmt = new UpdateStmt(table, std::move(values), std::move(fields), filter_stmt);
   return RC::SUCCESS;
 }

@@ -11,28 +11,29 @@ See the Mulan PSL v2 for more details. */
 //
 // Created by liuxin on 2024/10/14.
 //
-
 #pragma once
 
 #include "sql/operator/logical_operator.h"
+#include "storage/field/field.h"
+#include "common/types.h"
 
-/**
- * @brief 逻辑算子，用于执行delete语句
- * @ingroup LogicalOperator
- */
 class UpdateLogicalOperator : public LogicalOperator
 {
 public:
-  UpdateLogicalOperator(Table *table, Value *value, FieldMeta *field);
+  UpdateLogicalOperator(Table *table, std::vector<Value> values, std::vector<FieldMeta> fields);
   virtual ~UpdateLogicalOperator() = default;
 
-  LogicalOperatorType type() const override { return LogicalOperatorType::UPDATE; }
-  Table              *table() const { return table_; }
-  Value              *value() const { return value_; }
-  FieldMeta          *field() const { return field_; }
+  LogicalOperatorType type() const override
+  {
+    return LogicalOperatorType::UPDATE;
+  }
 
+  Table *table() const { return table_; }
+  std::vector<Value> &values() { return values_; }
+  std::vector<FieldMeta> &fields() { return fields_; }
+  
 private:
   Table *table_ = nullptr;
-  Value *value_ = nullptr;
-  FieldMeta *field_ = nullptr; 
+  std::vector<Value> values_;
+  std::vector<FieldMeta> fields_;
 };

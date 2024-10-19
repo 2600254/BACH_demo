@@ -97,7 +97,10 @@ public:
   {
     this->attr_type_        = AttrType::DATES;
     this->value_.int_value_ = year * 10000 + month * 100 + day;
+    this->length_ = sizeof(this->value_.int_value_);
   }
+  void set_date(int val);
+
   void set_value(const Value &value);
   void set_boolean(bool val);
 
@@ -132,7 +135,6 @@ public:
 
 private:
   void set_int(int val);
-  void set_date(int val);
   void set_float(float val);
   void set_long(int64_t val);
   void set_string(const char *s, int len = 0);
