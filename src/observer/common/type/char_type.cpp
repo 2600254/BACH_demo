@@ -44,18 +44,30 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
       }
       result.set_date(year, month, day);
     }break;
+    case AttrType::INTS:{
+      result.set_int(atoi(val.value_.pointer_value_));
+    }break;
+    case AttrType::FLOATS:{
+      result.set_float(atof(val.value_.pointer_value_));
+    }break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;
 }
 
-int CharType::cast_cost(AttrType type)
+int CharType::cast_cost(AttrType type) const
 {
   if (type == AttrType::CHARS) {
     return 0;
   }
   if (type == AttrType::DATES){
     return 1;
+  }
+  if (type == AttrType::INTS){
+    return 2;
+  }
+  if (type == AttrType::FLOATS){
+    return 3;
   }
   
   return INT32_MAX;

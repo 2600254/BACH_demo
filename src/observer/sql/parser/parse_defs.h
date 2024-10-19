@@ -51,8 +51,8 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
-  LIKE_OP,      //"like"      
-  NOT_LIKE_OP,  //"not like"  
+  LIKE_OP,      //"like"
+  NOT_LIKE_OP,  //"not like"
   IN_OP,
   NOT_IN_OP,
   EXISTS_OP,
@@ -75,13 +75,25 @@ struct ConditionSqlNode
                                  ///< 1时，操作符左边是属性名，0时，是属性值
   Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
   RelAttrSqlNode left_attr;      ///< left-hand side attribute
-  CompOp         comp;           ///< comparison operator
+CompOp         comp;           ///< comparison operator
   int            right_is_attr;  ///< TRUE if right-hand side is an attribute
                                  ///< 1时，操作符右边是属性名，0时，是属性值
   RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
   Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
   int right_is_list;             ///< 1时，操作符右侧是值列表
   std::vector<Value> right_values; /// 右侧值为值列表时，只支持比较符为IN, NOT IN, EXISTS, NOT EXISTS
+};
+
+/**
+ * @brief 描述一串 inner join
+ * @ingroup SQLParser
+ * @details t1 inner join t2 on condition
+ */
+struct InnerJoinSqlNode
+{
+  std::string base_relation;
+  std::vector<std::string> join_relations;
+  std::vector<std::vector<ConditionSqlNode>> conditions;
 };
 
 /**
@@ -98,7 +110,7 @@ struct ConditionSqlNode
 struct SelectSqlNode
 {
   std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式
-  std::vector<std::string>                 relations;    ///< 查询的表
+  std::vector<InnerJoinSqlNode>   relations;///< 查询的表
   std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
 };
@@ -137,11 +149,18 @@ struct DeleteSqlNode
  * @brief 描述一个update语句
  * @ingroup SQLParser
  */
+
+struct UpdateKV
+{
+  std::string attr_name;  ///< Relation to delete from
+  Value       value;
+};
+
 struct UpdateSqlNode
 {
-  std::string                   relation_name;   ///< Relation to update
-  std::string                   attribute_name;  ///< 更新的字段，仅支持一个字段
-  Value                         value;           ///< 更新的值，仅支持一个字段
+  std::string                   relation_name;  ///< Relation to update
+  std::vector<std::string>      attribute_names;
+  std::vector<Value>            values;
   std::vector<ConditionSqlNode> conditions;
 };
 
@@ -186,9 +205,11 @@ struct DropTableSqlNode
  */
 struct CreateIndexSqlNode
 {
-  std::string index_name;      ///< Index name
-  std::string relation_name;   ///< Relation name
-  std::string attribute_name;  ///< Attribute name
+  bool                     is_unique;       ///< 是否唯一索引
+  std::string              index_name;      ///< Index name
+  std::string              relation_name;   ///< Relation name
+  std::string              attribute_name;  ///< Attribute name
+  std::vector<std::string> attr_names;
 };
 
 /**
@@ -263,7 +284,7 @@ struct ErrorSqlNode
  * @brief 表示一个SQL语句的类型
  * @ingroup SQLParser
  */
-enum  SqlCommandFlag
+enum SqlCommandFlag
 {
   SCF_ERROR = 0,
   SCF_CALC,

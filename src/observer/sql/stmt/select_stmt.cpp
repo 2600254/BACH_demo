@@ -43,14 +43,19 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // collect tables in `from` statement
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
-  for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
+  unordered_map<string, Table *> local_table_map;
+  vector<JoinTables> join_tables;
+
+  
+  // collect tables in `from` statement
+  auto check_and_collect_tables = [&](const char* table_name) {
     if (nullptr == table_name) {
-      LOG_WARN("invalid argument. relation name is null. index=%d", i);
+      LOG_WARN("invalid argument. relation name is null.");
       return RC::INVALID_ARGUMENT;
     }
 
     Table *table = db->find_table(table_name);
+    LOG_INFO("get here: such table. db=%s, table_name=%s", db->name(), table_name);
     if (nullptr == table) {
       LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
       return RC::SCHEMA_TABLE_NOT_EXIST;
@@ -59,6 +64,87 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     binder_context.add_table(table);
     tables.push_back(table);
     table_map.insert({table_name, table});
+    local_table_map.insert({table_name, table});
+    return RC::SUCCESS;
+  };
+  
+  // 先收集所有的 condition
+  std::vector<ConditionSqlNode>& all_conditions = const_cast<std::vector<ConditionSqlNode>&>(select_sql.conditions);
+  for (size_t i = 0; i < select_sql.relations.size(); ++i) {
+    const InnerJoinSqlNode& relations = select_sql.relations[i];
+    std::vector<std::vector<ConditionSqlNode>>& conditions = const_cast<decltype(relations.conditions)&>(relations.conditions);
+    for (auto& on_conds : conditions) {
+      all_conditions.insert(all_conditions.end(), on_conds.begin(), on_conds.end());
+      on_conds.clear();
+    }
+    conditions.clear();
+  }
+
+  auto cond_is_ok = [&local_table_map](const ConditionSqlNode& node) {
+    if (node.left_is_attr && local_table_map.count(node.left_attr.relation_name) == 0)  {
+      return false;
+    }
+    if (node.right_is_attr && local_table_map.count(node.right_attr.relation_name) == 0)  {
+      return false;
+    }
+    return true;
+  };
+
+  auto pick_conditions = [&cond_is_ok, &all_conditions]() {
+    std::vector<ConditionSqlNode> res;
+    for (auto iter = all_conditions.begin(); iter != all_conditions.end(); ) {
+      if (cond_is_ok(*iter)) {
+        res.emplace_back(*iter);
+        iter = all_conditions.erase(iter);
+      } else {
+        iter++;
+      }
+    }
+    return res;
+  };
+
+  auto process_one_relation = [&](const std::string& relation, JoinTables& jt) {
+    RC rc = RC::SUCCESS;
+    if (rc = check_and_collect_tables(relation.c_str()); rc != RC::SUCCESS) {
+      return rc;
+    }
+    auto ok_conds = pick_conditions();
+    // create FilterStmt
+    FilterStmt* filter_stmt = nullptr;
+    if (!ok_conds.empty()) {
+      if (rc = FilterStmt::create(db, table_map[relation], &table_map, ok_conds.data(), ok_conds.size(), filter_stmt);
+              rc != RC::SUCCESS) {
+        return rc;
+      }
+      ASSERT(nullptr != filter_stmt, "FilterStmt is null!");
+    }
+    // fill JoinTables
+    jt.push_join_table(table_map[relation], filter_stmt);
+    return rc;
+  };
+
+  for (size_t i = 0; i < select_sql.relations.size(); ++i) {
+    const InnerJoinSqlNode& relations = select_sql.relations[i];
+    local_table_map.clear();
+
+    // construct JoinTables
+    JoinTables jt;
+
+    // base relation
+    RC rc = process_one_relation(relations.base_relation, jt);
+    if (RC::SUCCESS != rc) {
+      return rc;
+    }
+
+    const std::vector<std::string>& join_relations = relations.join_relations;
+    for (size_t j = 0; j < join_relations.size(); ++j) {
+      if (RC::SUCCESS != (rc = process_one_relation(join_relations[j], jt))) {
+        return rc;
+      }
+    }
+
+    // push jt to join_tables
+    join_tables.emplace_back(std::move(jt));
   }
 
   // collect query fields in `select` statement
@@ -92,8 +178,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   RC          rc          = FilterStmt::create(db,
       default_table,
       &table_map,
-      select_sql.conditions.data(),
-      static_cast<int>(select_sql.conditions.size()),
+      all_conditions.data(),
+      static_cast<int>(all_conditions.size()),
       filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
@@ -103,7 +189,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
 
-  select_stmt->tables_.swap(tables);
+  select_stmt->join_tables_.swap(join_tables);
   select_stmt->query_expressions_.swap(bound_expressions);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->group_by_.swap(group_by_expressions);

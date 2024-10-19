@@ -19,6 +19,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
 
+static constexpr int MAX_TEXT_LENGTH = 65535;
+
 /**
  * @brief 属性的值
  * @ingroup DataType
@@ -35,7 +37,8 @@ public:
   friend class FloatType;
   friend class BooleanType;
   friend class CharType;
-  friend class DateType;
+  friend class LongType;
+  friend class TextType;
 
   Value() = default;
 
@@ -46,6 +49,7 @@ public:
   explicit Value(int val);
   explicit Value(float val);
   explicit Value(bool val);
+  explicit Value(int64_t val);
   explicit Value(const char *s, int len = 0);
 
   Value(const Value &other);
@@ -85,14 +89,17 @@ public:
   {
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
-
+  
   void set_type(AttrType type) { this->attr_type_ = type; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
   void set_date(int year, int month, int day){
     this->attr_type_ = AttrType::DATES;
     this->value_.int_value_ = year * 10000 + month * 100 + day;
+    this->length_ = sizeof(this->value_.int_value_);
   }
+  void set_date(int val);
+
   void set_value(const Value &value);
   void set_boolean(bool val);
 
@@ -114,11 +121,12 @@ public:
   float  get_float() const;
   string get_string() const;
   bool   get_boolean() const;
+  int64_t get_long() const;
 
 private:
   void set_int(int val);
-  void set_date(int val);
   void set_float(float val);
+  void set_long(int64_t val);
   void set_string(const char *s, int len = 0);
   void set_string_from_other(const Value &other);
 
@@ -131,6 +139,7 @@ private:
     int32_t int_value_;
     float   float_value_;
     bool    bool_value_;
+    int64_t long_;
     char   *pointer_value_;
   } value_ = {.int_value_ = 0};
 

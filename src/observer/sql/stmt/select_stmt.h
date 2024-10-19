@@ -33,6 +33,29 @@ class Table;
 class SelectStmt : public Stmt
 {
 public:
+  class JoinTables {
+  public:
+    JoinTables() = default;
+    ~JoinTables() = default;
+    JoinTables(JoinTables&& other) {
+      join_tables_.swap(other.join_tables_);
+      on_conds_.swap(other.on_conds_);
+    }
+    void push_join_table(Table* table, FilterStmt* fu) {
+      join_tables_.emplace_back(table);
+      on_conds_.emplace_back(fu);
+    }
+    const std::vector<Table*>& join_tables() const {
+      return join_tables_;
+    }
+    const std::vector<FilterStmt*>& on_conds() const {
+      return on_conds_;
+    }
+  private:
+    std::vector<Table*> join_tables_;
+    std::vector<FilterStmt*> on_conds_;
+  };
+public:
   SelectStmt() = default;
   ~SelectStmt() override;
 
@@ -42,7 +65,10 @@ public:
   static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
 
 public:
-  const std::vector<Table *> &tables() const { return tables_; }
+  const std::vector<JoinTables> &join_tables() const
+  {
+    return join_tables_;
+  }
   FilterStmt                 *filter_stmt() const { return filter_stmt_; }
 
   std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
@@ -50,7 +76,7 @@ public:
 
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
-  std::vector<Table *>                     tables_;
+  std::vector<JoinTables>                  join_tables_;
   FilterStmt                              *filter_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
 };

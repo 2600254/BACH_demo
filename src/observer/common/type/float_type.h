@@ -10,6 +10,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include "common/rc.h"
 #include "common/type/data_type.h"
 
 /**
@@ -35,4 +36,5 @@ public:
   RC to_string(const Value &val, string &result) const override;
 
   RC cast_to(const Value &val, AttrType type, Value &result) const override;
+  int cast_cost(AttrType type) const override;
 };

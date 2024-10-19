@@ -83,3 +83,18 @@ RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
   }
   return RC::SUCCESS;
 }
+
+int IntegerType::cast_cost(AttrType type) const
+{
+  if (type == AttrType::INTS) {
+    return 0;
+  }
+  if (type == AttrType::FLOATS) {
+    return 1;
+  }
+  if (type == AttrType::CHARS){
+    return 2;
+  }
+  
+  return INT32_MAX;
+}

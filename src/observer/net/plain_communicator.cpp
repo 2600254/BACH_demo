@@ -37,7 +37,7 @@ RC PlainCommunicator::read_event(SessionEvent *&event)
   int data_len = 0;
   int read_len = 0;
 
-  const int    max_packet_size = 8192;
+  const int    max_packet_size = 8192*16;
   vector<char> buf(max_packet_size);
 
   // 持续接收消息，直到遇到'\0'。将'\0'遇到的后续数据直接丢弃没有处理，因为目前仅支持一收一发的模式
@@ -244,9 +244,9 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
     rc = write_tuple_result(sql_result);
   }
 
-  if (OB_FAIL(rc)) {
-    return rc;
-  }
+  // if (OB_FAIL(rc)) {
+  //   return rc;
+  // }
 
   if (cell_num == 0) {
     // 除了select之外，其它的消息通常不会通过operator来返回结果，表头和行数据都是空的

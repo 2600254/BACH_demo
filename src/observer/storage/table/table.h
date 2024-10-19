@@ -93,12 +93,13 @@ public:
   RC delete_record(const Record &record);
   RC delete_record(const RID &rid);
   RC update_record(const Record &record, FieldMeta *field, const Value &value);
+  RC update_record(Record &old_record, Record &new_record);
   RC get_record(const RID &rid, Record &record);
 
   RC recover_insert_record(Record &record);
 
   // TODO refactor
-  RC create_index(Trx *trx, const FieldMeta *field_meta, const char *index_name);
+  RC create_index(Trx *trx, bool unique, const std::vector<const FieldMeta *> &field_metas, const char *index_name);
 
   RC get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode);
 
@@ -114,6 +115,9 @@ public:
    * @return RC
    */
   RC visit_record(const RID &rid, function<bool(Record &)> visitor);
+
+  RC write_text(int64_t &offset, int64_t length, const char *data);
+  RC read_text(int64_t offset, int64_t length, char *data) const;
 
 public:
   int32_t     table_id() const { return table_meta_.table_id(); }
@@ -132,10 +136,12 @@ private:
 
 private:
   RC init_record_handler(const char *base_dir);
+  RC init_text_handler(const char *base_dir);
 
 public:
   Index *find_index(const char *index_name) const;
   Index *find_index_by_field(const char *field_name) const;
+  DiskBufferPool    *text_buffer_pool_ = nullptr;   /// text文件关联的buffer pool
 
 private:
   Db                *db_ = nullptr;
