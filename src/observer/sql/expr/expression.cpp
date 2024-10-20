@@ -20,26 +20,10 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-RC UnboundFieldExpr::get_value(const Tuple &tuple, Value &value) const
-{
-  LOG_INFO("UnboundFieldExpr::get_value is_first_:%d",is_first_);
-  if(is_first_){
-    LOG_INFO("UnboundFieldExpr::get_value is_first_");
-    LOG_INFO("UnboundFieldExpr::get_value table_name_:%d",index_);
-    bool & is_first_ref = const_cast<bool&>(is_first_);
-    is_first_ref = false;
-    return tuple.find_cell(TupleCellSpec(table_name_.c_str(), field_name_.c_str()), value, const_cast<int&>(index_));
-  }else{
-    return tuple.cell_at(index_,value);
-  }
-}
-
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
   if(is_first_){
-    LOG_INFO("FieldExpr::get_value is_first_");
-    LOG_INFO("FieldExpr::get_value table_name_:%d",index_);
     bool & is_first_ref = const_cast<bool&>(is_first_);
     is_first_ref = false;
     return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value, const_cast<int&>(index_));
