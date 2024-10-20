@@ -225,7 +225,12 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
   Value left_value;
   Value right_value;
 
+  SubQueryExpr* left_subquery_expr = nullptr;
   SubQueryExpr* right_subquery_expr = nullptr;
+  if(left_->type() == ExprType::SUBQUERY){
+    left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
+    left_subquery_expr->open(nullptr);
+  }
   if(right_->type() == ExprType::SUBQUERY){
     right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
     right_subquery_expr->open(nullptr);
@@ -240,8 +245,8 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     return RC::RECORD_EOF == rc ? RC::SUCCESS : rc;
   }
 
-  if(left_->type() == ExprType::SUBQUERY){
-    LOG_WARN("left expression is a subquery");
+  if(left_->type() == ExprType::SUBQUERY && right_->type() == ExprType::SUBQUERY){
+    LOG_WARN("left and right expression are all subquery");
     return RC::INVALID_ARGUMENT;
   }
 
@@ -281,6 +286,12 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     rc = compare_value(left_value, right_value, bool_value);
     if (rc == RC::SUCCESS) {
       value.set_boolean(bool_value);
+    }
+    if(right_subquery_expr != nullptr){
+      right_subquery_expr->close();
+    }
+    if(left_subquery_expr != nullptr){
+      left_subquery_expr->close();
     }
   }
   value.set_boolean(bool_value);

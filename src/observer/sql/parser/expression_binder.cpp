@@ -142,6 +142,8 @@ RC ExpressionBinder::bind_field_expression(
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
     table = context_.query_tables()[0];
+  }else{
+    table = context_.find_table(now_table_name.c_str());
   }
   const TableMeta &table_meta = table->table_meta();
   Field      field(table, table_meta.field(fep->field_name()));
