@@ -37,12 +37,11 @@ enum class ExprType
 {
   NONE,
   STAR,                 ///< 星号，表示所有字段
-  UNBOUND_FIELD,        ///< 未绑定的字段，需要在resolver阶段解析为FieldExpr
   UNBOUND_AGGREGATION,  ///< 未绑定的聚合函数，需要在resolver阶段解析为AggregateExpr
-
   FIELD,        ///< 字段。在实际执行时，根据行数据内容提取对应字段的值
   VALUE,        ///< 常量值
-  VALUELIST,    ///< 常量值列表
+  EXPRLIST,     ///< 表达式列表 
+  SUBQUERY,     ///< 子查询
   NULLTYPE,     ///< 空值
   CAST,         ///< 需要做类型转换的表达式
   COMPARISON,   ///< 需要做比较的表达式
@@ -113,11 +112,33 @@ public:
   virtual const char *name() const { return name_.c_str(); }
   virtual void        set_name(std::string name) { name_ = name; }
 
+  virtual RC traverse_check(const std::function<RC(Expression*)>& check_func)
+  {
+    return check_func(this);
+  }
+
+  virtual void traverse(const std::function<void(Expression*)>& func)
+  {
+    constexpr auto always_true = [](const Expression *) { return true; };
+    this->traverse(func, always_true);
+  }
+
+  // 带条件的 后序遍历 dfs
+  virtual void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter)
+  {
+    if (filter(this)) {
+      func(this);
+    }
+  }
+
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
    */
   virtual int  pos() const { return pos_; }
   virtual void set_pos(int pos) { pos_ = pos; }
+
+  virtual std::string alias() const { return alias_; }
+  virtual void set_alias(std::string alias) { alias_ = alias; }
 
   /**
    * @brief 用于 ComparisonExpr 获得比较结果 `select`。
@@ -135,6 +156,7 @@ protected:
 
 private:
   std::string name_;
+  std::string alias_; //表达式别名
 };
 
 class StarExpr : public Expression
@@ -155,28 +177,6 @@ private:
   std::string table_name_;
 };
 
-class UnboundFieldExpr : public Expression
-{
-public:
-  UnboundFieldExpr(const std::string &table_name, const std::string &field_name)
-      : table_name_(table_name), field_name_(field_name)
-  {}
-
-  virtual ~UnboundFieldExpr() = default;
-
-  ExprType type() const override { return ExprType::UNBOUND_FIELD; }
-  AttrType value_type() const override { return AttrType::UNDEFINED; }
-
-  RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
-
-  const char *table_name() const { return table_name_.c_str(); }
-  const char *field_name() const { return field_name_.c_str(); }
-
-private:
-  std::string table_name_;
-  std::string field_name_;
-};
-
 /**
  * @brief 字段表达式
  * @ingroup Expression
@@ -186,7 +186,13 @@ class FieldExpr : public Expression
 public:
   FieldExpr() = default;
   FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
-  FieldExpr(const Field &field) : field_(field) {}
+  FieldExpr(const std::string& table_name, const std::string& field_name)
+      : table_name_(table_name), field_name_(field_name) {}
+  FieldExpr(const Field &field) 
+  : field_(field) {
+    table_name_ = field.table_name();
+    field_name_ = field.field_name();
+  }
 
   virtual ~FieldExpr() = default;
 
@@ -200,8 +206,15 @@ public:
 
   const Field &field() const { return field_; }
 
-  const char *table_name() const { return field_.table_name(); }
-  const char *field_name() const { return field_.field_name(); }
+  void set_field(const Field &field) {
+    field_ = field; 
+    table_name_ = field.table_name();
+    field_name_ = field.field_name();
+  }
+  void set_table_name(const char* table_name) { table_name_ = table_name; }
+
+  const char *table_name() const { return table_name_.c_str(); }
+  const char *field_name() const { return field_name_.c_str(); }
 
   RC get_column(Chunk &chunk, Column &column) override;
 
@@ -209,6 +222,9 @@ public:
 
 private:
   Field field_;
+  std::string table_name_;
+  std::string field_name_;
+
 };
 
 /**
@@ -258,24 +274,37 @@ public:
   AttrType value_type() const override { return AttrType::UNDEFINED; }
 };
 
-class ValueListExpr : public Expression {
+class SelectStmt;
+class LogicalOperator;
+class PhysicalOperator;
+class SubQueryExpr : public Expression
+{
 public:
-  ValueListExpr() = default;
-  explicit ValueListExpr(const std::vector<Value> &values) : values_(values) {}
+  SubQueryExpr(const SelectSqlNode& sql_node);
+  virtual ~SubQueryExpr() = default;
 
-  virtual ~ValueListExpr() = default;
+  RC open(Trx* trx);
+  RC close();
+  bool has_more_row(const Tuple &tuple) const;
 
-  RC get_value(const Tuple &tuple, Value &value) const override{
-    return RC::UNIMPLEMENTED;
-  }
-  ExprType type() const override { return ExprType::VALUELIST; }
-  AttrType value_type() const override { return values_[0].attr_type(); }
-  int      value_length() const override { return values_.size(); }
+  RC get_value(const Tuple &tuple, Value &value) const;
 
-  const std::vector<Value> &get_value() const { return values_; }
+  RC try_get_value(Value &value) const{return RC::UNIMPLEMENTED;}
+
+  ExprType type() const {return ExprType::SUBQUERY;}
+
+  AttrType value_type() const {return AttrType::UNDEFINED;}
+
+  RC generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables);
+  RC generate_logical_oper();
+  RC generate_physical_oper();
+
 
 private:
-  std::vector<Value> values_;
+  std::unique_ptr<SelectSqlNode> sql_node_;
+  std::unique_ptr<SelectStmt> stmt_;
+  std::unique_ptr<LogicalOperator> logical_oper_;
+  std::unique_ptr<PhysicalOperator> physical_oper_;
 };
 
 /**
@@ -298,6 +327,24 @@ public:
 
   std::unique_ptr<Expression> &child() { return child_; }
 
+  RC traverse_check(const std::function<RC(Expression*)>& check_func) override
+  {
+    if (RC rc = child_->traverse_check(check_func); RC::SUCCESS != rc) {
+      return rc;
+    } else if (rc = check_func(this); RC::SUCCESS != rc) {
+      return rc;
+    }
+    return RC::SUCCESS;
+  }
+
+  void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
+  {
+    if (filter(this)) {
+      child_->traverse(func, filter);
+      func(this);
+    }
+  }
+
 private:
   RC cast(const Value &value, Value &cast_value) const;
 
@@ -314,6 +361,7 @@ class ComparisonExpr : public Expression
 {
 public:
   ComparisonExpr(CompOp comp, std::unique_ptr<Expression> left, std::unique_ptr<Expression> right);
+  ComparisonExpr(CompOp comp, Expression* left, Expression* right);
   virtual ~ComparisonExpr();
 
   ExprType type() const override { return ExprType::COMPARISON; }
@@ -345,6 +393,28 @@ public:
   template <typename T>
   RC compare_column(const Column &left, const Column &right, std::vector<uint8_t> &result) const;
 
+  void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
+  {
+    if (filter(this)) {
+      left_->traverse(func, filter);
+      right_->traverse(func, filter);
+      func(this);
+    }
+  }
+
+  RC traverse_check(const std::function<RC(Expression*)>& check_func) override
+  {
+    RC rc = RC::SUCCESS;
+    if (RC::SUCCESS != (rc = left_->traverse_check(check_func))) {
+      return rc;
+    } else if (RC::SUCCESS != (rc = right_->traverse_check(check_func))) {
+      return rc;
+    } else if (RC::SUCCESS != (rc = check_func(this))) {
+      return rc;
+    }
+    return RC::SUCCESS;
+  }
+
 private:
   CompOp                      comp_;
   std::unique_ptr<Expression> left_;
@@ -367,6 +437,11 @@ public:
   };
 
 public:
+  ConjunctionExpr(Type type, Expression* left, Expression* right){
+    conjunction_type_ = type;
+    children_.emplace_back(left);
+    children_.emplace_back(right);
+  }
   ConjunctionExpr(Type type, std::vector<std::unique_ptr<Expression>> &children);
   virtual ~ConjunctionExpr() = default;
 
@@ -377,6 +452,30 @@ public:
   Type conjunction_type() const { return conjunction_type_; }
 
   std::vector<std::unique_ptr<Expression>> &children() { return children_; }
+
+  void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
+  {
+    if (filter(this)) {
+      for (auto& child : children_) {
+        child->traverse(func, filter);
+      }
+      func(this);
+    }
+  }
+
+  RC traverse_check(const std::function<RC(Expression*)>& check_func) override
+  {
+    RC rc = RC::SUCCESS;
+    for (auto& child : children_) {
+      if (RC::SUCCESS != (rc = child->traverse_check(check_func))) {
+        return rc;
+      }
+    }
+    if (RC::SUCCESS != (rc = check_func(this))) {
+      return rc;
+    }
+    return RC::SUCCESS;
+  }
 
 private:
   Type                                     conjunction_type_;
@@ -434,6 +533,28 @@ private:
 
   template <bool LEFT_CONSTANT, bool RIGHT_CONSTANT>
   RC execute_calc(const Column &left, const Column &right, Column &result, Type type, AttrType attr_type) const;
+
+  void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
+  {
+    if (filter(this)) {
+      left_->traverse(func, filter);
+      right_->traverse(func, filter);
+      func(this);
+    }
+  }
+
+  RC traverse_check(const std::function<RC(Expression*)>& check_func) override
+  {
+    RC rc = RC::SUCCESS;
+    if (RC::SUCCESS != (rc = left_->traverse_check(check_func))) {
+      return rc;
+    } else if (RC::SUCCESS != (rc = right_->traverse_check(check_func))) {
+      return rc;
+    } else if (RC::SUCCESS != (rc = check_func(this))) {
+      return rc;
+    }
+    return RC::SUCCESS;
+  }
 
 private:
   Type                        arithmetic_type_;
@@ -497,10 +618,83 @@ public:
 
   std::unique_ptr<Aggregator> create_aggregator() const;
 
+  void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
+  {
+    if (filter(this)) {
+      child_->traverse(func, filter);
+      func(this);
+    }
+  }
+
+  
+  RC traverse_check(const std::function<RC(Expression*)>& check_func) override
+  {
+    RC rc = RC::SUCCESS;
+    if (RC::SUCCESS != (rc = child_->traverse_check(check_func))) {
+      return rc;
+    } if (RC::SUCCESS != (rc = check_func(this))) {
+      return rc;
+    }
+    return rc;
+  }
+
+
 public:
   static RC type_from_string(const char *type_str, Type &type);
 
 private:
   Type                        aggregate_type_;
   std::unique_ptr<Expression> child_;
+};
+
+
+class ExprListExpr : public Expression
+{
+public:
+  ExprListExpr(std::vector<Expression*>&& exprs) {
+    for (auto expr : exprs) {
+      exprs_.emplace_back(expr);
+    }
+    exprs.clear();
+  }
+  ExprListExpr(std::vector<std::unique_ptr<Expression>>&& exprs) : exprs_(std::move(exprs)) {}
+  virtual ~ExprListExpr() = default;
+
+  void reset()
+  {
+    cur_idx_ = 0;
+  }
+
+  RC get_value(const Tuple &tuple, Value &value) const override
+  {
+    if (cur_idx_ >= static_cast<int>(exprs_.size())) {
+      return RC::RECORD_EOF;
+    }
+    return exprs_[const_cast<int&>(cur_idx_)++]->get_value(tuple, value);
+  }
+
+  std::vector<std::unique_ptr<Expression>> &exprs() { return exprs_; }
+
+  RC try_get_value(Value &value) const override { return RC::UNIMPLEMENTED; }
+
+  ExprType type() const override { return ExprType::EXPRLIST; }
+
+  AttrType value_type() const override { return AttrType::UNDEFINED; }
+
+  int expr_size() const { return exprs_.size(); }
+
+  
+  void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
+  {
+    if (filter(this)) {
+      for (auto& expr : exprs_) {
+        expr->traverse(func, filter);
+      }
+      func(this);
+    }
+  }
+
+private:
+  int cur_idx_ = 0;
+  std::vector<std::unique_ptr<Expression>> exprs_;
 };

@@ -46,82 +46,35 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   unordered_map<string, Table *> local_table_map;
   vector<JoinTables> join_tables;
 
-  
-  // collect tables in `from` statement
-  auto check_and_collect_tables = [&](const char* table_name) {
-    if (nullptr == table_name) {
-      LOG_WARN("invalid argument. relation name is null.");
-      return RC::INVALID_ARGUMENT;
+  for (auto &relation : select_sql.relations) {
+    if(table_map.find(relation.base_relation) == table_map.end()){
+      Table *table = db->find_table(relation.base_relation.c_str());
+      if (nullptr == table) {
+        LOG_WARN("no such table: %s", relation.base_relation.c_str());
+        return RC::SCHEMA_TABLE_NOT_EXIST;
+      }
+      tables.push_back(table);
+      binder_context.add_table(table);
+      table_map[relation.base_relation] = table;
     }
-
-    Table *table = db->find_table(table_name);
-    LOG_INFO("get here: such table. db=%s, table_name=%s", db->name(), table_name);
-    if (nullptr == table) {
-      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-      return RC::SCHEMA_TABLE_NOT_EXIST;
+    
+    const std::vector<std::string>& join_relations = relation.join_relations;
+    for (size_t j = 0; j < join_relations.size(); ++j) {
+      if(table_map.find(join_relations[j]) != table_map.end()){
+        continue;
+      }
+      Table *table = db->find_table(join_relations[j].c_str());
+      if (nullptr == table) {
+        LOG_WARN("no such table: %s", join_relations[j].c_str());
+        return RC::SCHEMA_TABLE_NOT_EXIST;
+      }
+      tables.push_back(table);
+      binder_context.add_table(table);
+      table_map[join_relations[j]] = table;
     }
-
-    binder_context.add_table(table);
-    tables.push_back(table);
-    table_map.insert({table_name, table});
-    local_table_map.insert({table_name, table});
-    return RC::SUCCESS;
-  };
-  
-  // 先收集所有的 condition
-  std::vector<ConditionSqlNode>& all_conditions = const_cast<std::vector<ConditionSqlNode>&>(select_sql.conditions);
-  for (size_t i = 0; i < select_sql.relations.size(); ++i) {
-    const InnerJoinSqlNode& relations = select_sql.relations[i];
-    std::vector<std::vector<ConditionSqlNode>>& conditions = const_cast<decltype(relations.conditions)&>(relations.conditions);
-    for (auto& on_conds : conditions) {
-      all_conditions.insert(all_conditions.end(), on_conds.begin(), on_conds.end());
-      on_conds.clear();
-    }
-    conditions.clear();
   }
 
-  auto cond_is_ok = [&local_table_map](const ConditionSqlNode& node) {
-    if (node.left_is_attr && local_table_map.count(node.left_attr.relation_name) == 0)  {
-      return false;
-    }
-    if (node.right_is_attr && local_table_map.count(node.right_attr.relation_name) == 0)  {
-      return false;
-    }
-    return true;
-  };
-
-  auto pick_conditions = [&cond_is_ok, &all_conditions]() {
-    std::vector<ConditionSqlNode> res;
-    for (auto iter = all_conditions.begin(); iter != all_conditions.end(); ) {
-      if (cond_is_ok(*iter)) {
-        res.emplace_back(*iter);
-        iter = all_conditions.erase(iter);
-      } else {
-        iter++;
-      }
-    }
-    return res;
-  };
-
-  auto process_one_relation = [&](const std::string& relation, JoinTables& jt) {
-    RC rc = RC::SUCCESS;
-    if (rc = check_and_collect_tables(relation.c_str()); rc != RC::SUCCESS) {
-      return rc;
-    }
-    auto ok_conds = pick_conditions();
-    // create FilterStmt
-    FilterStmt* filter_stmt = nullptr;
-    if (!ok_conds.empty()) {
-      if (rc = FilterStmt::create(db, table_map[relation], &table_map, ok_conds.data(), ok_conds.size(), filter_stmt);
-              rc != RC::SUCCESS) {
-        return rc;
-      }
-      ASSERT(nullptr != filter_stmt, "FilterStmt is null!");
-    }
-    // fill JoinTables
-    jt.push_join_table(table_map[relation], filter_stmt);
-    return rc;
-  };
+  LOG_INFO("tables num : %d", tables.size());
 
   for (size_t i = 0; i < select_sql.relations.size(); ++i) {
     const InnerJoinSqlNode& relations = select_sql.relations[i];
@@ -131,18 +84,14 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     JoinTables jt;
 
     // base relation
-    RC rc = process_one_relation(relations.base_relation, jt);
-    if (RC::SUCCESS != rc) {
-      return rc;
-    }
+    jt.push_join_table(table_map[relations.base_relation], nullptr);
 
     const std::vector<std::string>& join_relations = relations.join_relations;
     for (size_t j = 0; j < join_relations.size(); ++j) {
-      if (RC::SUCCESS != (rc = process_one_relation(join_relations[j], jt))) {
-        return rc;
-      }
+      FilterStmt* filter_stmt = nullptr;
+      FilterStmt::create(db, table_map[join_relations[j]], &table_map, relations.conditions[j], filter_stmt);
+      jt.push_join_table(table_map[join_relations[j]], filter_stmt);
     }
-
     // push jt to join_tables
     join_tables.emplace_back(std::move(jt));
   }
@@ -151,7 +100,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   vector<unique_ptr<Expression>> bound_expressions;
   ExpressionBinder expression_binder(binder_context);
   
-  for (unique_ptr<Expression> &expression : select_sql.expressions) {
+  for (auto expression : select_sql.expressions) {
     RC rc = expression_binder.bind_expression(expression, bound_expressions);
     if (OB_FAIL(rc)) {
       LOG_INFO("bind expression failed. rc=%s", strrc(rc));
@@ -160,7 +109,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   vector<unique_ptr<Expression>> group_by_expressions;
-  for (unique_ptr<Expression> &expression : select_sql.group_by) {
+  for (auto expression : select_sql.group_by) {
     RC rc = expression_binder.bind_expression(expression, group_by_expressions);
     if (OB_FAIL(rc)) {
       LOG_INFO("bind expression failed. rc=%s", strrc(rc));
@@ -173,14 +122,18 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
+
   // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(db,
       default_table,
       &table_map,
-      all_conditions.data(),
-      static_cast<int>(all_conditions.size()),
+      select_sql.conditions,
       filter_stmt);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("cannot construct filter stmt");
+    return rc;
+  }
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;

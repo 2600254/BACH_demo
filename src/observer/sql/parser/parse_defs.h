@@ -60,29 +60,6 @@ enum CompOp
   NO_OP
 };
 
-/**
- * @brief 表示一个条件比较
- * @ingroup SQLParser
- * @details 条件比较就是SQL查询中的 where a>b 这种。
- * 一个条件比较是有两部分组成的，称为左边和右边。
- * 左边和右边理论上都可以是任意的数据，比如是字段（属性，列），也可以是数值常量。
- * 这个结构中记录的仅仅支持字段和值。
- */
-struct ConditionSqlNode
-{
-  int left_is_attr;              ///< TRUE if left-hand side is an attribute
-  int left_is_null;
-                                 ///< 1时，操作符左边是属性名，0时，是属性值
-  Value          left_value;     ///< left-hand side value if left_is_attr = FALSE
-  RelAttrSqlNode left_attr;      ///< left-hand side attribute
-CompOp         comp;           ///< comparison operator
-  int            right_is_attr;  ///< TRUE if right-hand side is an attribute
-                                 ///< 1时，操作符右边是属性名，0时，是属性值
-  RelAttrSqlNode right_attr;     ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
-  Value          right_value;    ///< right-hand side value if right_is_attr = FALSE
-  int right_is_list;             ///< 1时，操作符右侧是值列表
-  std::vector<Value> right_values; /// 右侧值为值列表时，只支持比较符为IN, NOT IN, EXISTS, NOT EXISTS
-};
 
 /**
  * @brief 描述一串 inner join
@@ -93,7 +70,7 @@ struct InnerJoinSqlNode
 {
   std::string base_relation;
   std::vector<std::string> join_relations;
-  std::vector<std::vector<ConditionSqlNode>> conditions;
+  std::vector<Expression*> conditions;
 };
 
 /**
@@ -109,10 +86,10 @@ struct InnerJoinSqlNode
 
 struct SelectSqlNode
 {
-  std::vector<std::unique_ptr<Expression>> expressions;  ///< 查询的表达式
+  std::vector<Expression*> expressions;  ///< 查询的表达式
   std::vector<InnerJoinSqlNode>   relations;///< 查询的表
-  std::vector<ConditionSqlNode>            conditions;   ///< 查询条件，使用AND串联起来多个条件
-  std::vector<std::unique_ptr<Expression>> group_by;     ///< group by clause
+  Expression*            conditions = nullptr;   ///< 查询条件，使用AND串联起来多个条件
+  std::vector<Expression*> group_by;     ///< group by clause
 };
 
 /**
@@ -121,7 +98,7 @@ struct SelectSqlNode
  */
 struct CalcSqlNode
 {
-  std::vector<std::unique_ptr<Expression>> expressions;  ///< calc clause
+  std::vector<Expression*> expressions;  ///< calc clause
 };
 
 /**
@@ -142,7 +119,7 @@ struct InsertSqlNode
 struct DeleteSqlNode
 {
   std::string                   relation_name;  ///< Relation to delete from
-  std::vector<ConditionSqlNode> conditions;
+  Expression* conditions = nullptr;
 };
 
 /**
@@ -161,7 +138,7 @@ struct UpdateSqlNode
   std::string                   relation_name;  ///< Relation to update
   std::vector<std::string>      attribute_names;
   std::vector<Value>            values;
-  std::vector<ConditionSqlNode> conditions;
+  Expression*                   conditions = nullptr;      ///< 更新条件
 };
 
 /**

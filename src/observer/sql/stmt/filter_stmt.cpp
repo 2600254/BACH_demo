@@ -20,33 +20,75 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "common/lang/defer.h"
 
-FilterStmt::~FilterStmt()
-{
-  for (FilterUnit *unit : filter_units_) {
-    delete unit;
-  }
-  filter_units_.clear();
-}
-
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
+      Expression *condition, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
 
-  FilterStmt *tmp_stmt = new FilterStmt();
-  for (int i = 0; i < condition_num; i++) {
-    FilterUnit *filter_unit = nullptr;
-
-    rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
-    if (rc != RC::SUCCESS) {
-      delete tmp_stmt;
-      LOG_WARN("failed to create filter unit. condition index=%d", i);
-      return rc;
-    }
-    tmp_stmt->filter_units_.push_back(filter_unit);
+  if(condition == nullptr){
+    return rc;
   }
 
+  auto check_condition_expr = [&db, &default_table, &tables](Expression *expr) {
+    if (expr->type() == ExprType::COMPARISON) {
+      ComparisonExpr* cmp_expr = static_cast<ComparisonExpr*>(expr);
+      CompOp comp = cmp_expr->comp();
+      if (comp < EQUAL_TO || comp >= NO_OP) {
+        LOG_WARN("invalid compare operator : %d", comp);
+        return RC::INVALID_ARGUMENT;
+      }
+    }else if(expr->type() == ExprType::CONJUNCTION){
+      ConjunctionExpr* conj_expr = static_cast<ConjunctionExpr*>(expr);
+      if(conj_expr->conjunction_type() != ConjunctionExpr::Type::AND && conj_expr->conjunction_type() != ConjunctionExpr::Type::OR){
+        LOG_WARN("invalid conjunction operator");
+        return RC::INVALID_ARGUMENT;
+      }
+    }else if(expr->type() == ExprType::NULLTYPE){
+      return RC::SUCCESS;
+    }else if(expr->type() == ExprType::VALUE){
+      return RC::SUCCESS;
+    }else if(expr->type() == ExprType::FIELD){
+      //检查字段是否存在
+      FieldExpr* field_expr = static_cast<FieldExpr*>(expr);
+
+      const char *table_name = strlen(field_expr->table_name()) == 0 ? default_table->name() : field_expr->table_name();
+      if(table_name == nullptr){
+        LOG_WARN("no table name");
+        return RC::SCHEMA_TABLE_NOT_EXIST;
+      }
+      field_expr->set_table_name(table_name);
+      const char* field_name = field_expr->field_name();
+      if(field_name == nullptr){
+        LOG_WARN("no field name");
+        return RC::SCHEMA_FIELD_NOT_EXIST;
+      }
+      Table* table = db->find_table(table_name);
+      if(table == nullptr){
+        LOG_WARN("no such table");
+        return RC::SCHEMA_TABLE_NOT_EXIST;
+      }
+      const FieldMeta* field = table->table_meta().field(field_name);
+      if(field == nullptr){
+        LOG_WARN("no such field in table");
+        return RC::SCHEMA_FIELD_NOT_EXIST;
+      }
+      field_expr->set_field(Field(table, field));
+
+    }else if(expr->type() == ExprType::SUBQUERY){
+      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr*>(expr);
+      //生成子查询的select stmt
+      return subquery_expr->generate_select_stmt(db, *tables);
+    }
+    return RC::SUCCESS;
+  };
+  rc = condition->traverse_check(check_condition_expr);
+  if (RC::SUCCESS != rc) {
+    return rc;
+  }
+
+  FilterStmt *tmp_stmt = new FilterStmt();
+  tmp_stmt->condition_expr_ = std::unique_ptr<Expression>(condition);
   stmt = tmp_stmt;
   return rc;
 }
@@ -77,89 +119,4 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
   }
 
   return RC::SUCCESS;
-}
-
-RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const ConditionSqlNode &condition, FilterUnit *&filter_unit)
-{
-  RC rc = RC::SUCCESS;
-
-  CompOp comp = condition.comp;
-  if (comp < EQUAL_TO || comp >= NO_OP) {
-    LOG_WARN("invalid compare operator : %d", comp);
-    return RC::INVALID_ARGUMENT;
-  }
-
-  filter_unit = new FilterUnit;
-
-  if(condition.left_is_null && condition.right_is_list){
-    if((condition.comp == EXISTS_OP || condition.comp == NOT_EXISTS_OP)){
-      FilterObj left_filter_obj;
-      left_filter_obj.init_null();
-      FilterObj right_filter_obj;
-      right_filter_obj.init_values(condition.right_values);
-      filter_unit->set_left(left_filter_obj);
-      filter_unit->set_right(right_filter_obj);
-    }else{
-      LOG_WARN("invalid compare operator : %d", comp);
-      return RC::INVALID_ARGUMENT;
-    }
-  }
-
-  if (condition.left_is_attr) {
-    Table           *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_left(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.left_value);
-    filter_unit->set_left(filter_obj);
-  }
-
-  if (condition.right_is_attr) {
-    Table           *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc                     = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_right(filter_obj);
-  } else {
-    if(comp == NOT_IN_OP || comp == IN_OP){
-      if(condition.right_is_list == 0){
-        LOG_WARN("input error");
-        return RC::INVALID_ARGUMENT;
-      }
-      FilterObj filter_obj;
-      filter_obj.init_values(condition.right_values);
-      filter_unit->set_right(filter_obj);
-    }else{
-      FilterObj filter_obj;
-      if(condition.right_is_list == 0){
-        filter_obj.init_value(condition.right_value);
-      }else if(condition.right_values.size() > 1){
-        LOG_WARN("input error");
-        return RC::INVALID_ARGUMENT;
-      }else{
-        filter_obj.init_value(condition.right_values[0]);
-      }
-      filter_unit->set_right(filter_obj);
-      
-    }
-  }
-
-  filter_unit->set_comp(comp);
-
-  // 检查两个类型是否能够比较
-  return rc;
 }

@@ -77,6 +77,6 @@ public:
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
   std::vector<JoinTables>                  join_tables_;
-  FilterStmt                              *filter_stmt_ = nullptr;
+  FilterStmt                               *filter_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
 };

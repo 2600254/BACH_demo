@@ -16,13 +16,25 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/tuple.h"
 #include <regex>
 #include <string>
+#include <iomanip>
+#include "common/lang/string.h"
 #include "sql/expr/arithmetic_operator.hpp"
+#include "sql/optimizer/logical_plan_generator.h"
+#include "sql/optimizer/physical_plan_generator.h"
+#include "sql/stmt/select_stmt.h"
+#include "sql/parser/parse_defs.h"
 
 using namespace std;
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  LOG_INFO("%s", tuple.to_string().c_str());
+  const char* table_name_str = table_name();
+  if(table_name_str == nullptr){
+    table_name_str = field_.table_name();
+  }
+  LOG_INFO("table_name: %s, field_name: %s", table_name_str, field_name());
+  return tuple.find_cell(TupleCellSpec(table_name_str, field_name()), value);
 }
 
 bool FieldExpr::equal(const Expression &other) const
@@ -138,6 +150,10 @@ ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_
     : comp_(comp), left_(std::move(left)), right_(std::move(right))
 {}
 
+ComparisonExpr::ComparisonExpr(CompOp comp, Expression* left, Expression* right)
+    : comp_(comp), left_(left), right_(right)
+{}
+
 ComparisonExpr::~ComparisonExpr() {}
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
@@ -201,42 +217,6 @@ RC ComparisonExpr::try_get_value(Value &cell) const
     }
     return rc;
   }
-  if(left_->type() == ExprType::VALUE && right_->type() == ExprType::VALUELIST){
-    ValueExpr *  left_value_expr  = static_cast<ValueExpr *>(left_.get());
-    ValueListExpr *  right_value_expr = static_cast<ValueListExpr *>(right_.get());
-    const Value &left_cell        = left_value_expr->get_value();
-    std::vector<Value> right_value_list       = right_value_expr->get_value();
-    bool result = false;
-    RC rc = RC::SUCCESS;
-    if(comp_ == EXISTS_OP){
-      result = right_value_list.size() > 0;
-    }else if(comp_ == NOT_EXISTS_OP){
-      result = right_value_list.size() == 0;
-    }else if(comp_ == IN_OP){
-      for(auto right_value : right_value_list){
-        int com_result = left_cell.compare(right_value);
-        result = (com_result == 0);
-        if(result){
-          break;
-        }
-    }
-    }else if(comp_ == NOT_IN_OP){
-      result = true;
-      for(auto right_value : right_value_list){
-        int com_result = left_cell.compare(right_value);
-        result = (com_result != 0);
-        if(result == false){
-          break;
-        }
-      }
-    }else{
-      LOG_WARN("failed to compare tuple cells. comp_op error");
-      return RC::INVALID_ARGUMENT;
-    }
-    cell.set_boolean(result);
-    return rc;
-  }
-
   return RC::INVALID_ARGUMENT;
 }
 
@@ -244,39 +224,50 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
   Value left_value;
   Value right_value;
+
+  SubQueryExpr* right_subquery_expr = nullptr;
+  if(right_->type() == ExprType::SUBQUERY){
+    right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
+    right_subquery_expr->open(nullptr);
+  }
+
+
   bool bool_value = false;
   RC rc = RC::SUCCESS;
-  if(comp_ == EXISTS_OP){
-    bool_value =  right_->value_length() > 0;
-  }else if(comp_ == NOT_EXISTS_OP){
-    bool_value =  right_->value_length() == 0;
-  }else if(comp_ == IN_OP || comp_ == NOT_IN_OP){
+  if (comp_ == EXISTS_OP || comp_ == NOT_EXISTS_OP) {
+    rc = right_->get_value(tuple, right_value);
+    value.set_boolean(comp_ == EXISTS_OP ? rc == RC::SUCCESS : rc == RC::RECORD_EOF);
+    return RC::RECORD_EOF == rc ? RC::SUCCESS : rc;
+  }
+
+  if(left_->type() == ExprType::SUBQUERY){
+    LOG_WARN("left expression is a subquery");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  if(comp_ == IN_OP || comp_ == NOT_IN_OP){
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
       return rc;
     }
-    ValueListExpr *  right_value_expr = static_cast<ValueListExpr *>(right_.get());
-    std::vector<Value> right_value_list       = right_value_expr->get_value();
-    if(comp_ == IN_OP){
-      for(auto right_value_item : right_value_list){
-        int com_result = left_value.compare(right_value_item);
-        bool_value = (com_result == 0);
-        if(bool_value){
-          break;
-        }
-      }
-    }else{
-      bool_value = true;
-      for(auto right_value_item : right_value_list){
-        int com_result = left_value.compare(right_value_item);
-        bool_value = (com_result != 0);
-        if(!bool_value){
-          break;
-        }
+    //右侧如果是一个值list 比如 id in (1,2,3)
+    if(right_->type() == ExprType::EXPRLIST){
+      static_cast<ExprListExpr*>(right_.get())->reset();
+    }
+    bool res = false; // 有一样的值
+    while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
+      if(left_value.compare(right_value) == 0) {
+        res = true;
       }
     }
+    value.set_boolean(comp_ == IN_OP ? res : !res);
+    if(right_subquery_expr != nullptr){
+      right_subquery_expr->close();
+    }
+    return rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
   }else{
+
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
@@ -699,4 +690,59 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
     rc = RC::INVALID_ARGUMENT;
   }
   return rc;
+}
+
+SubQueryExpr::SubQueryExpr(const SelectSqlNode& sql_node) {
+  sql_node_ = std::make_unique<SelectSqlNode>(sql_node);
+}
+
+bool SubQueryExpr::has_more_row(const Tuple &tuple) const
+{
+  return physical_oper_->next() != RC::RECORD_EOF;
+}
+
+RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const{
+  physical_oper_->set_parent_tuple(&tuple);
+  // 每次返回一行的第一个 cell
+  RC rc = physical_oper_->next();
+  if (RC::SUCCESS != rc) {
+    return rc;
+  }
+  return physical_oper_->current_tuple()->cell_at(0, value);
+}
+
+RC SubQueryExpr::open(Trx* trx) {return physical_oper_->open(trx);}
+
+RC SubQueryExpr::close() {return physical_oper_->close();}
+
+RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables){
+  Stmt * select_stmt = nullptr;
+  if (RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt); OB_FAIL(rc)) {
+    return rc;
+  }
+  if (select_stmt->type() != StmtType::SELECT) {
+    return RC::INVALID_ARGUMENT;
+  }
+  SelectStmt* ss = static_cast<SelectStmt*>(select_stmt);
+  if (ss->query_expressions().size() > 1) {
+    return RC::INVALID_ARGUMENT;
+  }
+  stmt_ = std::unique_ptr<SelectStmt>(ss);
+  return RC::SUCCESS;
+}
+RC SubQueryExpr::generate_logical_oper(){
+  LogicalPlanGenerator lpg;
+  if (RC rc = lpg.create(stmt_.get(), logical_oper_); OB_FAIL(rc)) {
+    LOG_WARN("subquery logical oper generate failed. return %s", strrc(rc));
+    return rc;
+  }
+  return RC::SUCCESS;
+}
+RC SubQueryExpr::generate_physical_oper(){
+  PhysicalPlanGenerator ppg;
+  if (RC rc = ppg.create(*logical_oper_, physical_oper_); OB_FAIL(rc)) {
+    LOG_WARN("subquery physical oper generate failed. return %s", strrc(rc));
+    return rc;
+  }
+  return RC::SUCCESS;
 }
