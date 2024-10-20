@@ -186,7 +186,8 @@ public:
   ExprType type() const override { return ExprType::UNBOUND_FIELD; }
   AttrType value_type() const override { return AttrType::UNDEFINED; }
 
-  RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
+  // RC get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
+  RC get_value(const Tuple &tuple, Value &value) const override;
 
   const char *table_name() const { return table_name_.c_str(); }
   const char *field_name() const { return field_name_.c_str(); }
@@ -199,6 +200,9 @@ public:
 private:
   std::string table_name_;
   std::string field_name_;
+  
+  int index_ = -1;
+  bool is_first_ = true;
 };
 
 /**
@@ -561,4 +565,7 @@ public:
 private:
   Type                        aggregate_type_;
   std::unique_ptr<Expression> child_;
+  
+  bool is_first_ = true;
+  int index_ = -1;
 };

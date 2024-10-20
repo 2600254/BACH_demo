@@ -52,7 +52,7 @@ public:
     return RC::SUCCESS;
   }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell,int &index) const override
+  RC find_cell(const TupleCellSpec &spec, Value &cell, int &index) const override
   {
     RC rc = RC::SUCCESS;
     if (child_tuple_ != nullptr) {

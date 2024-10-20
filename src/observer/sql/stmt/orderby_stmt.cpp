@@ -5,19 +5,20 @@
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/expr/expression.h"
 
 RC OrderByStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      const std::vector<OrderBySqlNode> &orderby_sql_nodes, OrderByStmt *&stmt,
+      const std::vector<unique_ptr<OrderBySqlNode>> &orderby_sql_nodes, OrderByStmt *&stmt,
       std::vector<std::unique_ptr<Expression>> &&exprs)
 {
   RC rc = RC::SUCCESS;
   stmt = nullptr;
 
   std::vector<std::unique_ptr<OrderByUnit >> tmp_units;
-  
+
   for(auto &node : orderby_sql_nodes)
   {
-    tmp_units.emplace_back(std::make_unique<OrderByUnit>(node.expr,node.is_asc));//这里 order by unit 中的指针是独享的
+    tmp_units.emplace_back(std::make_unique<OrderByUnit>(node->expr,node->is_asc));//这里 order by unit 中的指针是独享的
   }
   // everything alright
   stmt = new OrderByStmt();

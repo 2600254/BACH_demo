@@ -45,6 +45,55 @@ static void wildcard_fields(Table *table, vector<unique_ptr<Expression>> &expres
   }
 }
 
+
+RC ExpressionBinder::bind_unbound_field_expression_orderby(OrderBySqlNode node,
+                                                                std::vector<std::unique_ptr<OrderBySqlNode>> &node_temp)
+{
+  auto expr = node.expr;
+  if (nullptr == expr) {
+    return RC::SUCCESS;
+  }
+
+  auto unbound_field_expr = static_cast<UnboundFieldExpr *>(expr);
+
+  const char *table_name = unbound_field_expr->table_name();
+  const char *field_name = unbound_field_expr->field_name();
+
+  Table *table = nullptr;
+  if (is_blank(table_name)) {
+    if (context_.query_tables().size() != 1) {
+      LOG_INFO("cannot determine table for field: %s", field_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    table = context_.query_tables()[0];
+  } else {
+    table = context_.find_table(table_name);
+    if (nullptr == table) {
+      LOG_INFO("no such table in from list: %s", table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+  }
+
+  const FieldMeta *field_meta = table->table_meta().field(field_name);
+  if (nullptr == field_meta) {
+    LOG_INFO("no such field in table: %s.%s", table_name, field_name);
+    return RC::SCHEMA_FIELD_MISSING;
+  }
+
+  Field      field(table, field_meta);
+  FieldExpr *field_expr = new FieldExpr(field);
+  field_expr->set_name(field_name);
+
+  OrderBySqlNode *temp = new OrderBySqlNode();
+  temp->expr = field_expr;
+  temp->is_asc = node.is_asc;
+  node_temp.emplace_back(temp);
+
+  return RC::SUCCESS;
+}
+
+
 RC ExpressionBinder::bind_expression(unique_ptr<Expression> &expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {

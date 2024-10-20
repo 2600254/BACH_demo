@@ -45,6 +45,7 @@ public:
   virtual ~ExpressionBinder() = default;
 
   RC bind_expression(std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+  RC bind_unbound_field_expression_orderby(OrderBySqlNode node, std::vector<std::unique_ptr<OrderBySqlNode>> &node_temp);
 
 private:
   RC bind_star_expression(

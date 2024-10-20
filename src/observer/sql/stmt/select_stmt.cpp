@@ -203,69 +203,37 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       expr_for_orderby.emplace_back(static_cast<FieldExpr*>(static_cast<FieldExpr*>(expr)->deep_copy().release()));
     }
   };
-  // do extract
   for (auto& project : group_by_expressions) {
     project->traverse(collect_aggr_exprs);
   }
   for (auto& project : bound_expressions) {
     project->traverse(collect_field_exprs, [](const Expression* expr) { return expr->type() != ExprType::AGGREGATION; });
   }
+  
+  vector<unique_ptr<OrderBySqlNode>>     orderbys_tmp;
+  for (auto &node : select_sql.orderbys) {
+    RC rc = expression_binder.bind_unbound_field_expression_orderby(node, orderbys_tmp);
+    if (OB_FAIL(rc)) {
+      LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+      return rc;
+    }
+  }
 
   OrderByStmt *orderby_stmt = nullptr;
-  rc = OrderByStmt::create(db,
-                          default_table,
-                          &table_map,
-                          select_sql.orderbys,
-                          orderby_stmt,
-                          std::move(expr_for_orderby));
-  select_sql.orderbys.clear();
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("cannot construct orderby stmt");
-    return rc;
-  } 
-
-  
-  // OrderByStmt *orderby_stmt = nullptr;
-  // if(select_sql.orderbys.size() > 0)
-  // {
-  //     // 1. 提取 AggrFuncExpr 以及不在 AggrFuncExpr 中的 FieldExpr
-  //     // std::vector<std::unique_ptr<AggrFuncExpr>> aggr_exprs;
-  //     // std::vector<std::unique_ptr<FieldExpr>> field_exprs_not_in_aggr;
-  //     std::vector<std::unique_ptr<Expression>> expr_for_orderby;
-  //     // 用于从 project exprs 中提取所有 aggr func exprs. e.g. min(c1 + 1) + 1
-  //     auto collect_aggr_exprs = [&expr_for_orderby](Expression * expr) {
-  //       if (expr->type() == ExprType::AGGREGATION) {
-  //         expr_for_orderby.emplace_back(static_cast<AggregateExpr*>(static_cast<AggregateExpr*>(expr)->deep_copy().release()));
-  //       }
-  //     };
-  //     // 用于从 project exprs 中提取所有不在 aggr func expr 中的 field expr
-  //     auto collect_field_exprs = [&expr_for_orderby](Expression * expr) {
-  //       if (expr->type() == ExprType::FIELD) {
-  //         expr_for_orderby.emplace_back(static_cast<FieldExpr*>(static_cast<FieldExpr*>(expr)->deep_copy().release()));
-  //       }
-  //     };
-  //   // do extract
-  //   for (auto& project : projects) {
-  //     project->traverse(collect_aggr_exprs);
-  //     project->traverse(collect_field_exprs, [](const Expression* expr) { return expr->type() != ExprType::AGGREGATION; });
-  //   }
-  //   // do check field
-  //   for (size_t i = 0 ; i < select_sql.orderbys.size() ; i++){
-  //     Expression* expr = select_sql.orderbys[i].expr;
-  //     if (rc = expr->traverse_check(check_project_expr); rc != RC::SUCCESS) {
-  //     LOG_WARN("project expr traverse check_field error!");
-  //     return rc;
-  //     }
-  //   }
-  //   rc = OrderByStmt::create(db,
-  //     default_table,
-  //     &table_map,
-  //     select_sql.orderbys,
-  //     orderby_stmt,
-  //     std::move(expr_for_orderby));
-
-  //   select_sql.orderbys.clear();
-  // }
+  if(select_sql.orderbys.size() > 0) {
+    rc = OrderByStmt::create(db,
+                            default_table,
+                            &table_map,
+                            orderbys_tmp,
+                            orderby_stmt,
+                            std::move(expr_for_orderby));
+    select_sql.orderbys.clear();
+    orderbys_tmp.clear();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct orderby stmt");
+      return rc;
+    }
+  }
 
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();

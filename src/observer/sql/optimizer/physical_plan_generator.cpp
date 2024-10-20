@@ -53,6 +53,7 @@ using namespace std;
 RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<PhysicalOperator> &oper)
 {
   RC rc = RC::SUCCESS;
+  LOG_INFO("create physical plan for logical operator %d", logical_operator.type());
 
   switch (logical_operator.type()) {
     case LogicalOperatorType::CALC: {

@@ -98,8 +98,6 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::unique_ptr<Logica
 
 RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  unique_ptr<LogicalOperator> *last_oper = nullptr;
-
   RC rc = RC::SUCCESS;
 
   const std::vector<SelectStmt::JoinTables> &tables = select_stmt->join_tables();
@@ -155,24 +153,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     }
   }
 
-
-  unique_ptr<LogicalOperator> predicate_oper;
-
-  rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
-  if (OB_FAIL(rc)) {
-    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
-    return rc;
-  }
-
-  last_oper = &outside_prev_oper;
-
-  if (predicate_oper) {
-    if (outside_prev_oper) {
-      predicate_oper->add_child(std::move(outside_prev_oper));
-    }
-
-    last_oper = &predicate_oper;
-  }
+  unique_ptr<LogicalOperator> last_oper = std::move(outside_prev_oper);
 
   unique_ptr<LogicalOperator> group_by_oper;
   rc = create_group_by_plan(select_stmt, group_by_oper);
@@ -182,12 +163,29 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   }
 
   if (group_by_oper) {
-    if (*last_oper) {
-      group_by_oper->add_child(std::move(*last_oper));
+    if (last_oper) {
+      group_by_oper->add_child(std::move(last_oper));
     }
 
-    last_oper = &group_by_oper;
+    last_oper = std::move(group_by_oper);
   }
+
+  unique_ptr<LogicalOperator> predicate_oper;
+
+  rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  if (predicate_oper) {
+    if (last_oper) {
+      predicate_oper->add_child(std::move(last_oper));
+    }
+
+    last_oper = std::move(predicate_oper);
+  }
+
 
   unique_ptr<LogicalOperator> orderby_oper;
   rc = create_plan(select_stmt->orderby_stmt(), orderby_oper);
@@ -196,16 +194,15 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
     return rc;
   }
   if(orderby_oper){
-    if (*last_oper) {
-      orderby_oper->add_child(std::move(*last_oper));
+    if (last_oper) {
+      orderby_oper->add_child(std::move(last_oper));
     }
-    last_oper = &orderby_oper;
-    LOG_INFO("niuxn:orderby_oper");
+    last_oper = std::move(orderby_oper);
   }
 
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(std::move(select_stmt->query_expressions())));
-  if (*last_oper) {
-    project_oper->add_child(std::move(*last_oper));
+  if (last_oper) {
+    project_oper->add_child(std::move(last_oper));
   }
 
   logical_operator.swap(project_oper);
@@ -457,12 +454,10 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
 
 RC LogicalPlanGenerator::create_plan(OrderByStmt *order_by_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  LOG_INFO("niuxn:begin sort");
   if (order_by_stmt == nullptr) {
     logical_operator = nullptr;
     return RC::SUCCESS;
   }
-  LOG_INFO("niuxn:order_by_stmt =! nullptr");
 
   unique_ptr<LogicalOperator> orderby_oper(
     new OrderByLogicalOperator(std::move(order_by_stmt->get_orderby_units()),

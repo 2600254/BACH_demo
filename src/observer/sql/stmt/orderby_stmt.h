@@ -46,10 +46,11 @@ public:
   void set_exprs(std::vector<std::unique_ptr<Expression>> &&exprs) { exprs_ = std::move(exprs); }
   std::vector<std::unique_ptr<OrderByUnit>> &get_orderby_units() { return orderby_units_; }
   std::vector<std::unique_ptr<Expression>>  &get_exprs() { return exprs_; }
+  RC bind_unbound_field_expression(std::unique_ptr<Expression> &expr);
 
 public:
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      const std::vector<OrderBySqlNode> &orderby_sql_nodes, OrderByStmt *&stmt,
+      const std::vector<std::unique_ptr<OrderBySqlNode>> &orderby_sql_nodes, OrderByStmt *&stmt,
       std::vector<std::unique_ptr<Expression>> &&exprs);
 
 private:

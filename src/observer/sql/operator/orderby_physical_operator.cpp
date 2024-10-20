@@ -30,12 +30,10 @@ RC OrderByPhysicalOperator::open(Trx *trx)
 {
   RC rc = RC::SUCCESS;
   if (children_.size() != 1) {
-    LOG_WARN("OrderByPhysicalOperator must has one child");
     return RC::INTERNAL;
   }
   if (RC::SUCCESS != (rc = children_[0]->open(trx))) {
     rc = RC::INTERNAL;
-    LOG_WARN("GroupByOperater child open failed!");
   }
   rc = fetch_and_sort_tables();
   return rc;
@@ -43,7 +41,6 @@ RC OrderByPhysicalOperator::open(Trx *trx)
 
 RC OrderByPhysicalOperator::fetch_and_sort_tables()
 {
-  LOG_WARN("niuxn:begin sort");
   RC rc = RC::SUCCESS;
 
   int index = 0;
@@ -55,13 +52,7 @@ RC OrderByPhysicalOperator::fetch_and_sort_tables()
   int row_values_index = 0;
   //int i = 0;
   while (RC::SUCCESS == (rc = children_[0]->next())) {
-    // if(i++ % 2500 == 0)
-    // {
-    //   LOG_WARN("niuxn:is sorting, %d",i);
-    // }
     row_values_index = 0;//每一行都从 0 开始填
-    // construct pair sort table
-    // 1 cons vector<cell>
     pair_cell.clear();
     for (auto &unit : orderby_units_) {
       auto &expr = unit->expr();
@@ -69,8 +60,6 @@ RC OrderByPhysicalOperator::fetch_and_sort_tables()
       expr->get_value(*children_[0]->current_tuple(), cell);//取出每行中要参与排序的cell
       pair_cell.emplace_back(cell);
     }
-    // 2 cons pair
-    // 3 cons pair vector
     pair_sort_table.emplace_back(std::make_pair(pair_cell, index++));//将每行数据放入排序的内存中
     // store child records
 
@@ -94,7 +83,6 @@ RC OrderByPhysicalOperator::fetch_and_sort_tables()
   LOG_INFO("Fetch Table Success In SortOperator");
 
   bool order[orderby_units_.size()];  // specify 1 asc or 2 desc
-
 
   for(size_t i = 0 ; i < orderby_units_.size() ; ++i){
     order[i] = orderby_units_[i]->sort_type(); // true is asc
@@ -123,7 +111,6 @@ RC OrderByPhysicalOperator::fetch_and_sort_tables()
     return false;  // completely same
   };
   std::sort(pair_sort_table.begin(), pair_sort_table.end(), cmp);
-  LOG_INFO("niuxn:Sort Table Success In SortOperator");
 
   // fill ordered_idx_
   for (size_t i = 0; i < pair_sort_table.size(); ++i) {
@@ -137,7 +124,6 @@ RC OrderByPhysicalOperator::fetch_and_sort_tables()
 
 RC OrderByPhysicalOperator::next()
 {
-
   if (ordered_idx_.end() != it_) {
     // NOTE: PAY ATTENTION HERE
 
