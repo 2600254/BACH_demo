@@ -7,6 +7,9 @@
 
   
 int DateType::compare(const Value &left, const Value &right) const {
+    if (left.is_null() || right.is_null()) {
+        return common::compare_null(left.is_null(), right.is_null());
+    }
     return common::compare_int((void *)&left.value_.int_value_, (void *)&right.value_.int_value_);
 }
 

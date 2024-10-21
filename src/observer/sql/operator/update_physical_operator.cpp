@@ -52,6 +52,10 @@ RC UpdatePhysicalOperator::find_target_columns()
       if (0 != strcmp(field_name, attr_name.c_str())) {
         continue;
       }
+      if (values_[c_idx].is_null() && !field_meta->nullable()){
+        LOG_WARN("field %s is not nullable", field_name);
+        return RC::INVALID_ARGUMENT;
+      }
       fields_id_.emplace_back(i + sys_field_num);
       fields_meta_.emplace_back(*field_meta);
       break;
@@ -142,7 +146,15 @@ RC UpdatePhysicalOperator::construct_new_record(Record &old_record, Record &new_
     common::Bitmap   old_null_bitmap(old_record.data() + null_field->offset(), table_->table_meta().field_num());
     common::Bitmap   new_null_bitmap(tmp_record_data_ + null_field->offset(), table_->table_meta().field_num());
 
-    new_null_bitmap.clear_bit(fields_id_[c_idx]);
+    // new_null_bitmap.clear_bit(fields_id_[c_idx]);
+    if (value->is_null() && old_null_bitmap.get_bit(fields_id_[c_idx])){
+      old_value.emplace_back(field_meta.type(), nullptr, 0);
+    } else if (value->is_null()){
+      new_null_bitmap.set_bit(fields_id_[c_idx]);
+      old_value.emplace_back(field_meta.type(), nullptr, 0);
+    } else {
+      new_null_bitmap.clear_bit(fields_id_[c_idx]);
+    }
     if (AttrType::CHARS == field_meta.type()) {
       memcpy(tmp_record_data_ + field_meta.offset(), value->data(), value->length() + 1);
     } else if (AttrType::TEXTS == field_meta.type()){

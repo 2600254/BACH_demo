@@ -44,7 +44,10 @@ public:
 
   ~Value() { reset(); }
 
-  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type) { this->set_data(data, length); }
+  Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type) { 
+    if (AttrType::NULLS != attr_type_)
+      this->set_data(data, length); 
+  }
 
   explicit Value(int val);
   explicit Value(float val);
@@ -100,9 +103,10 @@ public:
     this->length_ = sizeof(this->value_.int_value_);
   }
   void set_date(int val);
-
   void set_value(const Value &value);
   void set_boolean(bool val);
+  void set_null() { this->attr_type_ = AttrType::NULLS; }
+  bool is_null() const { return AttrType::NULLS == this->attr_type_; }
 
   string to_string() const;
 

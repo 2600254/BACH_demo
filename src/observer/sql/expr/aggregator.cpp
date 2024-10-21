@@ -24,7 +24,10 @@ RC SumAggregator::accumulate(const Value &value)
   
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  
+  if (value.is_null())
+  {
+    return RC::SUCCESS;
+  }
   Value::add(value, value_, value_);
   return RC::SUCCESS;
 }
@@ -45,7 +48,10 @@ RC AvgAggregator::accumulate(const Value &value)
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
+  if (value.is_null())
+  {
+    return RC::SUCCESS;
+  }
   Value::add(value, value_, value_);
   Value::add(count_, Value(1), count_);
   return RC::SUCCESS;
@@ -67,7 +73,11 @@ RC MinAggregator::accumulate(const Value &value)
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
+  if (value_.is_null())
+  {
+    value_ = value;
+    return RC::SUCCESS;
+  }
   if (value_.compare(value) > 0) {
     value_ = value;
   }
@@ -89,7 +99,11 @@ RC MaxAggregator::accumulate(const Value &value)
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
+  if (value_.is_null())
+  {
+    value_ = value;
+    return RC::SUCCESS;
+  }
   if (value_.compare(value) < 0) {
     value_ = value;
   }
@@ -112,7 +126,10 @@ RC CountAggregator::accumulate(const Value &value)
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-
+  if (value.is_null())
+  {
+    return RC::SUCCESS;
+  }
   Value::add(count_, Value(1), count_);
   return RC::SUCCESS;
 }

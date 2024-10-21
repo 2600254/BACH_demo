@@ -126,6 +126,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         UNIQUE
         ORDER
         ASC
+        NULL_T
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -211,6 +212,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
 %type <boolean>             unique_option
+%type <boolean>             null_option
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -405,23 +407,42 @@ attr_def_list:
     ;
     
 attr_def:
-    ID type LBRACE number RBRACE 
+    ID type LBRACE number RBRACE null_option
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+      $$->nullable = $6;
       free($1);
     }
-    | ID type
+    | ID type null_option
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      $$->nullable = $3;
       free($1);
     }
     ;
+
+null_option:
+    /* empty */
+    {
+      $$ = false;
+    }
+    | NULL_T
+    {
+      $$ = true;
+    }
+    | NOT NULL_T
+    {
+      $$ = false;
+    }
+    ;
+
+
 number:
     NUMBER {$$ = $1;}
     ;
@@ -493,6 +514,10 @@ value:
       $$ = new Value(tmp);
       free(tmp);
       free($1);
+    }
+    |NULL_T{
+      $$ = new Value();
+      $$->set_null();
     }
     ;
 storage_format:

@@ -59,18 +59,23 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
       LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_names[i].c_str());
       return RC::SCHEMA_FIELD_NOT_EXIST;
     } else {
-      // bool valid = false;
+      bool valid = true;
+      const Value &value = update_sql.values[i];
+      // check type nullable
+      if (value.is_null() && !update_field->nullable()){
+        valid = false;
+      }
+      if (!valid) {
+        LOG_WARN("update field type mismatch. table=%s", table_name);
+        return RC::INVALID_ARGUMENT;
+      }
+
       if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == update_sql.values[i].attr_type()) {
         if (MAX_TEXT_LENGTH < update_sql.values[i].length()) {
           LOG_WARN("Text length:%d, over max_length 65535", update_sql.values[i].length());
           return RC::INVALID_ARGUMENT;
         }
-        // valid = true;
       }
-      // if (!valid) {
-      //   LOG_WARN("update field type mismatch. table=%s", table_name);
-      //   return RC::INVALID_ARGUMENT;
-      // }
     }
     fields.emplace_back(*update_field);
     values.emplace_back(update_sql.values[i]);

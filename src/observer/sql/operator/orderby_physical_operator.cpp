@@ -95,15 +95,15 @@ RC OrderByPhysicalOperator::fetch_and_sort_tables()
     for (size_t i = 0; i < cells_a.size(); ++i) {
       auto &cell_a = cells_a[i];
       auto &cell_b = cells_b[i];
-      // if (cell_a.is_null() && cell_b.is_null()) {
-      //   continue;
-      // }
-      // if (cell_a.is_null()) {
-      //   return order[i] ? true : false;
-      // }
-      // if (cell_b.is_null()) {
-      //   return order[i] ? false : true;
-      // }
+      if (cell_a.is_null() && cell_b.is_null()) {
+        continue;
+      }
+      if (cell_a.is_null()) {
+        return order[i] ? true : false;
+      }
+      if (cell_b.is_null()) {
+        return order[i] ? false : true;
+      }
       if (cell_a != cell_b) {
         return order[i] ? cell_a < cell_b : cell_a > cell_b;
       }

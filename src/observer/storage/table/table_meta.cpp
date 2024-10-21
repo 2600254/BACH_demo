@@ -44,7 +44,7 @@ void TableMeta::swap(TableMeta &other) noexcept
 }
 
 RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMeta> *trx_fields,
-                   span<const AttrInfoSqlNode> attributes, StorageFormat storage_format)
+    span<const AttrInfoSqlNode> attributes, StorageFormat storage_format)
 {
   if (common::is_blank(name)) {
     LOG_ERROR("Name cannot be empty");
@@ -66,8 +66,8 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
   int sys_field_num = trx_field_num + 1;
   fields_.resize(attributes.size() + sys_field_num);
   // __null
-  int null_len = (sys_field_num + attributes.size() + 7) / 8; // one field one bit
-  fields_[0] = FieldMeta("__null", AttrType::CHARS, 0, null_len, false, 0);
+  int null_len = (sys_field_num + attributes.size() + 7) / 8;  // one field one bit
+  fields_[0]   = FieldMeta("__null", AttrType::CHARS, 0, null_len, false, 0);
   field_offset += null_len;
 
   if (trx_fields != nullptr) {
@@ -75,17 +75,23 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
 
     for (size_t i = 0; i < trx_fields->size(); i++) {
       const FieldMeta &field_meta = (*trx_fields)[i];
-      fields_[i + 1] = FieldMeta(field_meta.name(), field_meta.type(), field_offset, field_meta.len(), false /*visible*/, field_meta.field_id());
+      fields_[i + 1]              = FieldMeta(field_meta.name(),
+          field_meta.type(),
+          field_offset,
+          field_meta.len(),
+          false /*visible*/,
+          field_meta.field_id(),
+          field_meta.nullable());
       field_offset += field_meta.len();
     }
+  }
 
-  } 
-  
   for (size_t i = 0; i < attributes.size(); i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
     // `i` is the col_id of fields[i]
     rc = fields_[i + sys_field_num].init(
-      attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i+1);
+        attr_info.name.c_str(), attr_info.type, field_offset, attr_info.length, true /*visible*/, i + 1,
+        attr_info.nullable);
     if (OB_FAIL(rc)) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
       return rc;
@@ -96,8 +102,8 @@ RC TableMeta::init(int32_t table_id, const char *name, const std::vector<FieldMe
 
   record_size_ = field_offset;
 
-  table_id_ = table_id;
-  name_     = name;
+  table_id_       = table_id;
+  name_           = name;
   storage_format_ = storage_format;
   LOG_INFO("Sussessfully initialized table meta. table id=%d, name=%s", table_id, name);
   return RC::SUCCESS;
@@ -174,8 +180,8 @@ int TableMeta::record_size() const { return record_size_; }
 int TableMeta::serialize(std::ostream &ss) const
 {
   Json::Value table_value;
-  table_value[FIELD_TABLE_ID]   = table_id_;
-  table_value[FIELD_TABLE_NAME] = name_;
+  table_value[FIELD_TABLE_ID]       = table_id_;
+  table_value[FIELD_TABLE_NAME]     = name_;
   table_value[FIELD_STORAGE_FORMAT] = static_cast<int>(storage_format_);
 
   Json::Value fields_value;
@@ -266,7 +272,7 @@ int TableMeta::deserialize(std::istream &is)
   auto comparator = [](const FieldMeta &f1, const FieldMeta &f2) { return f1.offset() < f2.offset(); };
   std::sort(fields.begin(), fields.end(), comparator);
 
-  table_id_ = table_id;
+  table_id_       = table_id;
   storage_format_ = static_cast<StorageFormat>(storage_format);
   name_.swap(table_name);
   fields_.swap(fields);
@@ -274,7 +280,7 @@ int TableMeta::deserialize(std::istream &is)
 
   for (const FieldMeta &field_meta : fields_) {
     if (!field_meta.visible() && field_meta.type() != AttrType::CHARS) {
-      trx_fields_.push_back(field_meta); // 字段加上trx标识更好
+      trx_fields_.push_back(field_meta);  // 字段加上trx标识更好
     }
   }
 
@@ -323,6 +329,4 @@ void TableMeta::desc(std::ostream &os) const
   os << ')' << std::endl;
 }
 
- const FieldMeta    *TableMeta::null_field()  const{
-   return &fields_[0];
- }
+const FieldMeta *TableMeta::null_field() const { return &fields_[0]; }

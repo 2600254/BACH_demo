@@ -38,11 +38,11 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value     *values     = inserts.values.data();
-  const int        value_num  = static_cast<int>(inserts.values.size());
-  const TableMeta &table_meta = table->table_meta();
-  const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
-  const int sys_field_num = table_meta.sys_field_num();
+  const Value     *values        = inserts.values.data();
+  const int        value_num     = static_cast<int>(inserts.values.size());
+  const TableMeta &table_meta    = table->table_meta();
+  const int        field_num     = table_meta.field_num() - table_meta.sys_field_num();
+  const int        sys_field_num = table_meta.sys_field_num();
   if (field_num != value_num) {
     LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", value_num, field_num);
     return RC::SCHEMA_FIELD_MISSING;
@@ -51,9 +51,12 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
   // check fields type
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
-    const AttrType field_type = field_meta->type();
-    const AttrType value_type = values[i].attr_type();
-    
+    const AttrType   field_type = field_meta->type();
+    const AttrType   value_type = values[i].attr_type();
+    if (value_type == AttrType::NULLS && !field_meta->nullable()) {
+      LOG_WARN("null value is not allowed. field_name=%s", field_meta->name());
+      return RC::INVALID_ARGUMENT;
+    }
     if (AttrType::TEXTS == field_type && AttrType::CHARS == value_type) {
       if (MAX_TEXT_LENGTH < values[i].length()) {
         LOG_WARN("Text length:%d, over max_length 65535", values[i].length());

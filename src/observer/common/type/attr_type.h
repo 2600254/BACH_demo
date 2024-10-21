@@ -27,6 +27,7 @@ enum class AttrType
   LONGS,          ///< Int64
   TEXTS,          ///< text类型，最大65535字节
   MAXTYPE,   ///< 请在 UNDEFINED 与 MAXTYPE 之间增加新类型
+  NULLS,     ///< 空值类型
 };
 
 const char *attr_type_to_string(AttrType type);
