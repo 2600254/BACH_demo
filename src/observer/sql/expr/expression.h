@@ -139,7 +139,6 @@ public:
 
   virtual std::string alias() const { return alias_; }
   virtual void set_alias(std::string alias) { alias_ = alias; }
-
   /**
    * @brief 用于 ComparisonExpr 获得比较结果 `select`。
    */

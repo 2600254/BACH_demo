@@ -193,6 +193,10 @@ RC ExpressionBinder::bind_field_expression(
     table = context_.query_tables()[0];
   }else{
     table = context_.find_table(now_table_name.c_str());
+    if (nullptr == table) {
+      LOG_INFO("no such table in from list: %s", now_table_name.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
   }
   const TableMeta &table_meta = table->table_meta();
   const FieldMeta *field_meta = table_meta.field(fep->field_name());

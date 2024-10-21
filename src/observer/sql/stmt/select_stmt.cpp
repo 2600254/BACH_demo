@@ -94,7 +94,11 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     const std::vector<std::string>& join_relations = relations.join_relations;
     for (size_t j = 0; j < join_relations.size(); ++j) {
       FilterStmt* filter_stmt = nullptr;
-      FilterStmt::create(db, table_map[join_relations[j]], &table_map, relations.conditions[j], filter_stmt);
+      RC rc = FilterStmt::create(db, table_map[join_relations[j]], &table_map, relations.conditions[j], filter_stmt);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("cannot construct filter stmt");
+        return rc;
+      }
       jt.push_join_table(table_map[join_relations[j]], filter_stmt);
     }
     // push jt to join_tables
@@ -139,10 +143,6 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     LOG_WARN("cannot construct filter stmt");
     return rc;
   }
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("cannot construct filter stmt");
-    return rc;
-  }
 
   OrderByStmt *orderby_stmt = nullptr;
   if(select_sql.orderbys.size() > 0) {
@@ -181,7 +181,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
                             orderby_stmt,
                             std::move(expr_for_orderby));
     select_sql.orderbys.clear();
-    // orderbys_tmp.clear();
+    orderbys_tmp.clear();
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot construct orderby stmt");
       return rc;

@@ -40,8 +40,6 @@ public:
 public:
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       Expression *condition, FilterStmt *&stmt);
-
-
 private:
   std::unique_ptr<Expression> condition_expr_; ///< 过滤条件
 };
