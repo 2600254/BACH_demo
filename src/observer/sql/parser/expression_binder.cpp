@@ -195,6 +195,11 @@ RC ExpressionBinder::bind_field_expression(
     table = context_.find_table(now_table_name.c_str());
   }
   const TableMeta &table_meta = table->table_meta();
+  const FieldMeta *field_meta = table_meta.field(fep->field_name());
+  if (nullptr == field_meta) {
+    LOG_INFO("no such field in table: %s.%s", now_table_name.c_str(), fep->field_name());
+    return RC::SCHEMA_FIELD_MISSING;
+  }
   Field      field(table, table_meta.field(fep->field_name()));
   fep->set_field(field);
   bound_expressions.emplace_back(std::move(fep));

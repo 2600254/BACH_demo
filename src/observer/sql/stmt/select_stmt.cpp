@@ -176,11 +176,12 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     rc = OrderByStmt::create(db,
                             default_table,
                             &table_map,
+                            // select_sql.orderbys,
                             orderbys_tmp,
                             orderby_stmt,
                             std::move(expr_for_orderby));
     select_sql.orderbys.clear();
-    orderbys_tmp.clear();
+    // orderbys_tmp.clear();
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot construct orderby stmt");
       return rc;
