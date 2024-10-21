@@ -453,6 +453,9 @@ public:
     return RC::SUCCESS;
   }
 
+  void set_left(std::unique_ptr<Expression> left) { left_ = std::move(left); }
+  void set_right(std::unique_ptr<Expression> right) { right_ = std::move(right); }
+
 private:
   CompOp                      comp_;
   std::unique_ptr<Expression> left_;
