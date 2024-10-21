@@ -151,21 +151,27 @@ RC UpdatePhysicalOperator::construct_new_record(Record &old_record, Record &new_
       old_value.emplace_back(field_meta.type(), nullptr, 0);
     } else if (value->is_null()){
       new_null_bitmap.set_bit(fields_id_[c_idx]);
-      old_value.emplace_back(field_meta.type(), nullptr, 0);
+      old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());
     } else {
       new_null_bitmap.clear_bit(fields_id_[c_idx]);
-    }
-    if (AttrType::CHARS == field_meta.type()) {
+      if (AttrType::CHARS == field_meta.type()) {
       memcpy(tmp_record_data_ + field_meta.offset(), value->data(), value->length() + 1);
-    } else if (AttrType::TEXTS == field_meta.type()){
-      int64_t position[2];
-      position[1] = value->length();
-      table_->text_buffer_pool_->append_data(position[0], position[1], value->data());
-      memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));
-    }else {
-      memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());
+      } else if (AttrType::TEXTS == field_meta.type()){
+        int64_t position[2];
+        position[1] = value->length();
+        table_->text_buffer_pool_->append_data(position[0], position[1], value->data());
+        memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));
+      }else {
+        memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());
+      }
+
+      if (old_null_bitmap.get_bit(fields_id_[c_idx])) {
+        old_value.emplace_back(AttrType::NULLS, nullptr, 0);
+      } else {
+        old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());
+      }
     }
-    old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());
+    // old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());
   }
   // 比较整行数据
   if (0 == memcmp(old_record.data(), tmp_record_data_, table_->table_meta().record_size())) {
@@ -197,9 +203,11 @@ RC UpdatePhysicalOperator::construct_old_record(Record &updated_record, Record &
     common::Bitmap   old_null_bitmap(tmp_record_data_ + null_field->offset(), table_->table_meta().field_num());
     common::Bitmap updated_null_bitmap(updated_record.data() + null_field->offset(), table_->table_meta().field_num());
 
-    // 旧值不是NULL
-    old_null_bitmap.clear_bit(fields_id_[c_idx]);
-
+    if (value->is_null()){
+      old_null_bitmap.set_bit(fields_id_[c_idx]);
+    }else{
+      old_null_bitmap.clear_bit(fields_id_[c_idx]);
+    }
     memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());
   }
 

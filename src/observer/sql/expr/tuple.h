@@ -95,7 +95,7 @@ public:
    * @param spec cell的描述
    * @param[out] cell 返回的cell
    */
-  virtual RC find_cell(const TupleCellSpec &spec, Value &cell,int &index) const = 0;
+  virtual RC find_cell(const TupleCellSpec &spec, Value &cell, int &index) const = 0;
 
   virtual std::string to_string() const
   {
@@ -171,12 +171,12 @@ public:
     }
     speces_.clear();
   }
-  
+
   void set_record(Record *record)
   {
     this->record_ = record;
     ASSERT(!this->speces_.empty(), "RowTuple speces empty!");
-    const FieldMeta* null_field = this->speces_.front()->field().meta();
+    const FieldMeta *null_field = this->speces_.front()->field().meta();
     ASSERT(nullptr != null_field && AttrType::CHARS == null_field->type(), "RowTuple get null field failed!");
     bitmap_.init(record->data() + null_field->offset(), this->speces_.size());
   }
@@ -202,24 +202,27 @@ public:
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
-
-    FieldExpr       *field_expr = speces_[index];
-    const FieldMeta *field_meta = field_expr->field().meta();
-    if (AttrType::TEXTS == field_meta->type()) {
-      cell.set_type(AttrType::CHARS);
-      int64_t offset = *(int64_t*)(record_->data() + field_meta->offset());
-      int64_t length = *(int64_t*)(record_->data() + field_meta->offset() + sizeof(int64_t));
-      char *text = (char*)malloc(length);
-      rc = table_->read_text(offset, length, text);
-      if (RC::SUCCESS != rc) {
-        LOG_WARN("Failed to read text from table, rc=%s", strrc(rc));
-        return rc;
-      }
-      cell.set_data(text, length);
-      free(text);
+    if (bitmap_.get_bit(index)) {
+      cell.set_null();
     } else {
-      cell.set_type(field_meta->type());
-      cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+      FieldExpr       *field_expr = speces_[index];
+      const FieldMeta *field_meta = field_expr->field().meta();
+      if (AttrType::TEXTS == field_meta->type()) {
+        cell.set_type(AttrType::CHARS);
+        int64_t offset = *(int64_t *)(record_->data() + field_meta->offset());
+        int64_t length = *(int64_t *)(record_->data() + field_meta->offset() + sizeof(int64_t));
+        char   *text   = (char *)malloc(length);
+        rc             = table_->read_text(offset, length, text);
+        if (RC::SUCCESS != rc) {
+          LOG_WARN("Failed to read text from table, rc=%s", strrc(rc));
+          return rc;
+        }
+        cell.set_data(text, length);
+        free(text);
+      } else {
+        cell.set_type(field_meta->type());
+        cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+      }
     }
     return RC::SUCCESS;
   }
@@ -231,7 +234,7 @@ public:
     return RC::SUCCESS;
   }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell,int &index) const override
+  RC find_cell(const TupleCellSpec &spec, Value &cell, int &index) const override
   {
     const char *table_name = spec.table_name();
     const char *field_name = spec.field_name();
@@ -270,7 +273,7 @@ private:
   Record                  *record_ = nullptr;
   const Table             *table_  = nullptr;
   std::vector<FieldExpr *> speces_;
-  common::Bitmap bitmap_;
+  common::Bitmap           bitmap_;
 };
 
 /**
@@ -315,9 +318,9 @@ public:
     return RC::SUCCESS;
   }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell,int &index) const override
+  RC find_cell(const TupleCellSpec &spec, Value &cell, int &index) const override
   {
-    return tuple_->find_cell(spec, cell, index);//TODO
+    return tuple_->find_cell(spec, cell, index);  // TODO
   }
 
 #if 0
@@ -371,7 +374,7 @@ public:
     return RC::SUCCESS;
   }
 
-  virtual RC find_cell(const TupleCellSpec &spec, Value &cell,int &index) const override
+  virtual RC find_cell(const TupleCellSpec &spec, Value &cell, int &index) const override
   {
     ASSERT(cells_.size() == specs_.size(), "cells_.size()=%d, specs_.size()=%d", cells_.size(), specs_.size());
 
@@ -457,16 +460,15 @@ public:
     return RC::NOTFOUND;
   }
 
-  RC find_cell(const TupleCellSpec &spec, Value &value,int &index) const override
+  RC find_cell(const TupleCellSpec &spec, Value &value, int &index) const override
   {
     RC rc = left_->find_cell(spec, value, index);
     if (rc == RC::SUCCESS || rc != RC::NOTFOUND) {
       return rc;
     }
 
-    rc = right_->find_cell(spec, value,index);
-    if( rc != RC::SUCCESS)
-    {
+    rc = right_->find_cell(spec, value, index);
+    if (rc != RC::SUCCESS) {
       return rc;
     }
     index += left_->cell_num();
@@ -482,21 +484,15 @@ private:
  * @brief 一些常量值组成的Tuple,用于 orderby 算子中
  * @ingroup Tuple
  */
-class SplicedTuple : public Tuple 
+class SplicedTuple : public Tuple
 {
 public:
-  SplicedTuple() = default;
+  SplicedTuple()          = default;
   virtual ~SplicedTuple() = default;
 
-  void set_cells(const std::vector<Value>* cells)
-  {
-    cells_ = cells;
-  }
+  void set_cells(const std::vector<Value> *cells) { cells_ = cells; }
 
-  virtual int cell_num() const override
-  {
-    return static_cast<int>((*cells_).size());
-  }
+  virtual int cell_num() const override { return static_cast<int>((*cells_).size()); }
 
   virtual RC cell_at(int index, Value &cell) const override
   {
@@ -508,31 +504,28 @@ public:
     return RC::SUCCESS;
   }
 
-  RC spec_at(int index, TupleCellSpec &spec) const override
-  {
-    return RC::NOTFOUND;
-  }
+  RC spec_at(int index, TupleCellSpec &spec) const override { return RC::NOTFOUND; }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell,int & index) const override
+  RC find_cell(const TupleCellSpec &spec, Value &cell, int &index) const override
   {
     // 先从字段表达式里面找
     for (size_t i = 0; i < exprs_.size(); ++i) {
-      if(exprs_[i]->type() == ExprType::FIELD){
-        const FieldExpr * expr =static_cast<FieldExpr*>(exprs_[i].get());
-        if (std::string(expr->field_name()) == std::string(spec.field_name()) && 
-            std::string(expr->table_name()) == std::string(spec.table_name()) ) {
-            cell = (*cells_)[i];
-            index = i;
+      if (exprs_[i]->type() == ExprType::FIELD) {
+        const FieldExpr *expr = static_cast<FieldExpr *>(exprs_[i].get());
+        if (std::string(expr->field_name()) == std::string(spec.field_name()) &&
+            std::string(expr->table_name()) == std::string(spec.table_name())) {
+          cell  = (*cells_)[i];
+          index = i;
           LOG_INFO("Field is found in field_exprs");
           return RC::SUCCESS;
         }
-      }else if(exprs_[i]->type() == ExprType::AGGREGATION){
-        if(spec.alias() == exprs_[i]->name()){
-          cell = (*cells_)[i];
+      } else if (exprs_[i]->type() == ExprType::AGGREGATION) {
+        if (spec.alias() == exprs_[i]->name()) {
+          cell  = (*cells_)[i];
           index = i;
           return RC::SUCCESS;
         }
-      }else{
+      } else {
         LOG_WARN("find cell in SplicedTuple error!");
         return RC::INTERNAL;
       }
@@ -546,14 +539,11 @@ public:
     exprs_ = std::move(exprs);
     return RC::SUCCESS;
   }
-  
-  std::vector<std::unique_ptr<Expression>> &exprs()
-  {
-    return exprs_;
-  }
+
+  std::vector<std::unique_ptr<Expression>> &exprs() { return exprs_; }
 
 private:
   const std::vector<Value> *cells_ = nullptr;
-  //在 create order by stmt 之前提取的  select clause 后的 field_expr (非a gg_expr 中的)和 agg_expr
+  // 在 create order by stmt 之前提取的  select clause 后的 field_expr (非a gg_expr 中的)和 agg_expr
   std::vector<std::unique_ptr<Expression>> exprs_;
 };

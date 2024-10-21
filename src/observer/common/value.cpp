@@ -255,8 +255,10 @@ const char *Value::data() const
 string Value::to_string() const
 {
   string res;
+  std::stringstream os;
   if (attr_type_ == AttrType::NULLS) {
-    return "NULL";
+    os << "NULL";
+    return os.str();
   }
   
   RC     rc = DataType::type_instance(this->attr_type_)->to_string(*this, res);

@@ -352,12 +352,14 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   const FieldMeta* null_field = table_meta_.null_field();
   common::Bitmap null_bitmap(record_data + null_field->offset(), table_meta_.field_num());
   null_bitmap.clear_bits();
-  // memset(record_data, 0, record_size);
 
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value     &value = values[i];
-
+    if (value.is_null() && field->nullable()) {
+      null_bitmap.set_bit(normal_field_start_index + i);
+      continue;
+    }
     if (field->type() != value.attr_type()) {
       if (AttrType::TEXTS == field->type() && AttrType::CHARS == value.attr_type()) {
         rc = set_value_to_record(record_data, value, field);

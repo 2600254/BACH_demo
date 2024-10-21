@@ -66,8 +66,6 @@ int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_len
   return 0;
 }
 
-}  // namespace common
-
 int compare_null(bool arg1, bool arg2)
 {
   if (arg1 && arg2) {
@@ -76,3 +74,6 @@ int compare_null(bool arg1, bool arg2)
     return -1;
   }
 }
+
+}  // namespace common
+
