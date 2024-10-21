@@ -73,7 +73,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
         LOG_WARN("no such field in table");
         return RC::SCHEMA_FIELD_NOT_EXIST;
       }
-      // field_expr->set_field(Field(table, field));
+      field_expr->set_field(Field(table, field));
 
     }else if(expr->type() == ExprType::SUBQUERY){
       SubQueryExpr* subquery_expr = static_cast<SubQueryExpr*>(expr);
