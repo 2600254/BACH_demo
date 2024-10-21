@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/value.h"
 
 class Expression;
+class OrderByUnit;
 
 /**
  * @defgroup SQLParser SQL Parser
@@ -38,6 +39,17 @@ struct RelAttrSqlNode
   std::string relation_name;   ///< relation name (may be NULL) 表名
   std::string attribute_name;  ///< attribute name              属性名
 };
+
+
+/**
+ * @brief 描述一个order by子句
+ */
+struct OrderBySqlNode
+{
+  Expression * expr = nullptr;
+  bool is_asc;// true 为升序
+};
+
 
 /**
  * @brief 描述比较运算符
@@ -88,8 +100,9 @@ struct SelectSqlNode
 {
   std::vector<Expression*> expressions;  ///< 查询的表达式
   std::vector<InnerJoinSqlNode>   relations;///< 查询的表
-  Expression*            conditions = nullptr;   ///< 查询条件，使用AND串联起来多个条件
+ Expression*            conditions = nullptr;   ///< 查询条件，使用AND串联起来多个条件
   std::vector<Expression*> group_by;     ///< group by clause
+  std::vector<OrderBySqlNode>     orderbys; ///< attributes in order clause
 };
 
 /**

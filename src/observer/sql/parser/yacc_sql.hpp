@@ -116,13 +116,15 @@ extern int yydebug;
     IN = 317,                      /* IN  */
     EXISTS = 318,                  /* EXISTS  */
     UNIQUE = 319,                  /* UNIQUE  */
-    NUMBER = 320,                  /* NUMBER  */
-    FLOAT = 321,                   /* FLOAT  */
-    ID = 322,                      /* ID  */
-    SSS = 323,                     /* SSS  */
-    AGGR = 324,                    /* AGGR  */
-    DATE_STR = 325,                /* DATE_STR  */
-    UMINUS = 326                   /* UMINUS  */
+    ORDER = 320,                   /* ORDER  */
+    ASC = 321,                     /* ASC  */
+    NUMBER = 322,                  /* NUMBER  */
+    FLOAT = 323,                   /* FLOAT  */
+    ID = 324,                      /* ID  */
+    SSS = 325,                     /* SSS  */
+    AGGR = 326,                    /* AGGR  */
+    DATE_STR = 327,                /* DATE_STR  */
+    UMINUS = 328                   /* UMINUS  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -131,7 +133,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 132 "yacc_sql.y"
+#line 134 "yacc_sql.y"
 
   ParsedSqlNode *                            sql_node;
   Expression *                               condition;
@@ -149,12 +151,14 @@ union YYSTYPE
   std::vector<std::string> *                 relation_list;
   InnerJoinSqlNode *                inner_joins;
   std::vector<InnerJoinSqlNode> *   inner_joins_list;
+  OrderBySqlNode*                   orderby_unit;
+  std::vector<OrderBySqlNode> *     orderby_unit_list;
   char *                                     string;
   int                                        number;
   float                                      floats;
   bool                                       boolean;
 
-#line 158 "yacc_sql.hpp"
+#line 162 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

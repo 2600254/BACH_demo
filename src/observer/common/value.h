@@ -89,12 +89,13 @@ public:
   {
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
-  
+
   void set_type(AttrType type) { this->attr_type_ = type; }
   void set_data(char *data, int length);
   void set_data(const char *data, int length) { this->set_data(const_cast<char *>(data), length); }
-  void set_date(int year, int month, int day){
-    this->attr_type_ = AttrType::DATES;
+  void set_date(int year, int month, int day)
+  {
+    this->attr_type_        = AttrType::DATES;
     this->value_.int_value_ = year * 10000 + month * 100 + day;
     this->length_ = sizeof(this->value_.int_value_);
   }
@@ -107,6 +108,15 @@ public:
 
   int compare(const Value &other) const;
 
+  bool operator<(const Value &other) { return compare(other) < 0; }
+  bool operator>(const Value &other) { return compare(other) > 0; }
+  bool operator==(const Value &other) const { return 0 == compare(other); }
+  bool operator!=(const Value &other) const { return 0 != compare(other); }
+  bool operator<(const Value &other) const { return compare(other) < 0; }
+  bool operator<=(const Value &other) const { return compare(other) <= 0; }
+  bool operator>(const Value &other) const { return compare(other) > 0; }
+  bool operator>=(const Value &other) const { return compare(other) >= 0; }
+
   const char *data() const;
 
   int      length() const { return length_; }
@@ -117,10 +127,10 @@ public:
    * 获取对应的值
    * 如果当前的类型与期望获取的类型不符，就会执行转换操作
    */
-  int    get_int() const;
-  float  get_float() const;
-  string get_string() const;
-  bool   get_boolean() const;
+  int     get_int() const;
+  float   get_float() const;
+  string  get_string() const;
+  bool    get_boolean() const;
   int64_t get_long() const;
 
 private:

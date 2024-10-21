@@ -145,6 +145,8 @@ public:
    */
   virtual RC eval(Chunk &chunk, std::vector<uint8_t> &select) { return RC::UNIMPLEMENTED; }
 
+  virtual std::unique_ptr<Expression> deep_copy() const {return nullptr;}
+
 protected:
   /**
    * @brief 表达式在下层算子返回的 chunk 中的位置
@@ -172,6 +174,11 @@ public:
   RC get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }  // 不需要实现
 
   const char *table_name() const { return table_name_.c_str(); }
+
+  unique_ptr<Expression> deep_copy() const override { 
+    LOG_WARN("RC::UNIMPLEMENTED StarExpr deep_copy");
+    return nullptr; 
+  }
 
 private:
   std::string table_name_;
@@ -219,12 +226,20 @@ public:
   RC get_column(Chunk &chunk, Column &column) override;
 
   RC get_value(const Tuple &tuple, Value &value) const override;
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    return std::unique_ptr<FieldExpr>(new FieldExpr(*this));
+  }
 
 private:
   Field field_;
   std::string table_name_;
   std::string field_name_;
 
+  
+  int index_ = -1;
+  bool is_first_ = true;
 };
 
 /**
@@ -255,6 +270,11 @@ public:
 
   void         get_value(Value &value) const { value = value_; }
   const Value &get_value() const { return value_; }
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    return std::unique_ptr<ValueExpr>(new ValueExpr(*this));
+  }
 
 private:
   Value value_;
@@ -326,6 +346,13 @@ public:
   AttrType value_type() const override { return cast_type_; }
 
   std::unique_ptr<Expression> &child() { return child_; }
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    auto new_expr = std::make_unique<CastExpr>(child_->deep_copy(), cast_type_);
+    new_expr->set_name(name());
+    return new_expr;
+  }
 
   RC traverse_check(const std::function<RC(Expression*)>& check_func) override
   {
@@ -392,6 +419,18 @@ public:
 
   template <typename T>
   RC compare_column(const Column &left, const Column &right, std::vector<uint8_t> &result) const;
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    std::unique_ptr<Expression> new_left = left_ ->deep_copy();
+    std::unique_ptr<Expression> new_right;
+    if (right_) { // NOTE: not has_rhs
+      new_right = right_->deep_copy();
+    }
+    auto new_expr = std::make_unique<ComparisonExpr>(comp_, std::move(new_left), std::move(new_right));
+    new_expr->set_name(name());
+    return new_expr;
+  }
 
   void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
   {
@@ -452,6 +491,17 @@ public:
   Type conjunction_type() const { return conjunction_type_; }
 
   std::vector<std::unique_ptr<Expression>> &children() { return children_; }
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    std::vector<std::unique_ptr<Expression>> new_children;
+    for (auto& child : children_) {
+      new_children.emplace_back(child->deep_copy());
+    }
+    auto new_expr = std::make_unique<ConjunctionExpr>(conjunction_type_, new_children);
+    new_expr->set_name(name());
+    return new_expr;
+  }
 
   void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
   {
@@ -525,6 +575,18 @@ public:
 
   std::unique_ptr<Expression> &left() { return left_; }
   std::unique_ptr<Expression> &right() { return right_; }
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    std::unique_ptr<Expression> new_left = left_ ->deep_copy();
+    std::unique_ptr<Expression> new_right;
+    if (right_) { // NOTE: not has_rhs
+      new_right = right_->deep_copy();
+    }
+    auto new_expr = std::make_unique<ArithmeticExpr>(arithmetic_type_, std::move(new_left), std::move(new_right));
+    new_expr->set_name(name());
+    return new_expr;
+  }
 
 private:
   RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
@@ -577,6 +639,12 @@ public:
   RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
   AttrType value_type() const override { return child_->value_type(); }
 
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    LOG_ERROR("RC::UNIMPLEMENTED UnboundAggregateExpr deep_copy");
+    return nullptr;
+  }
+
 private:
   std::string                 aggregate_name_;
   std::unique_ptr<Expression> child_;
@@ -617,6 +685,13 @@ public:
   const std::unique_ptr<Expression> &child() const { return child_; }
 
   std::unique_ptr<Aggregator> create_aggregator() const;
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    auto new_expr = std::make_unique<AggregateExpr>(aggregate_type_, std::move(child_->deep_copy()));
+    new_expr->set_name(name());
+    return new_expr;
+  }
 
   void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
   {
@@ -645,6 +720,9 @@ public:
 private:
   Type                        aggregate_type_;
   std::unique_ptr<Expression> child_;
+
+  bool is_first_ = true;
+  int index_ = -1;
 };
 
 
@@ -697,4 +775,7 @@ public:
 private:
   int cur_idx_ = 0;
   std::vector<std::unique_ptr<Expression>> exprs_;
+
+  bool is_first_ = true;
+  int index_ = -1;
 };

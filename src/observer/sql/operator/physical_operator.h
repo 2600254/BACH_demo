@@ -53,6 +53,7 @@ enum class PhysicalOperatorType
   UPDATE,
   SCALAR_GROUP_BY,
   HASH_GROUP_BY,
+  ORDERBY,
   GROUP_BY_VEC,
   AGGREGATE_VEC,
   EXPR_VEC,
