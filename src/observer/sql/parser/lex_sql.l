@@ -121,6 +121,8 @@ AVG |
 SUM |
 COUNT                                   yylval->string=strdup(yytext); RETURN_TOKEN(AGGR);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
+ASC                                     RETURN_TOKEN(ASC);
+ORDER                                   RETURN_TOKEN(ORDER);
 GROUP                                   RETURN_TOKEN(GROUP);
 BY                                      RETURN_TOKEN(BY);
 STORAGE                                 RETURN_TOKEN(STORAGE);

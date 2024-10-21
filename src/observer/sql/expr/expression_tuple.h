@@ -52,11 +52,11 @@ public:
     return RC::SUCCESS;
   }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell) const override
+  RC find_cell(const TupleCellSpec &spec, Value &cell, int &index) const override
   {
     RC rc = RC::SUCCESS;
     if (child_tuple_ != nullptr) {
-      rc = child_tuple_->find_cell(spec, cell);
+      rc = child_tuple_->find_cell(spec, cell, index);
       if (OB_SUCC(rc)) {
         return rc;
       }
