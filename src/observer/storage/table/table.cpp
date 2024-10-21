@@ -273,8 +273,15 @@ RC Table::insert_record(Record &record)
   }
 
   rc = insert_entry_of_indexes(record.data(), record.rid());
-  if (rc != RC::SUCCESS) {  // 可能出现了键值重复
-    RC rc2 = record_handler_->delete_record(&record.rid());
+  if (rc != RC::SUCCESS) {
+    RC rc2 = RC::SUCCESS; 
+    if (rc != RC::RECORD_DUPLICATE_KEY){
+      rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
+      if (rc2 != RC::SUCCESS)
+        LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
+                  name(), rc2, strrc(rc2));
+    }
+    rc2 = record_handler_->delete_record(&record.rid());
     if (rc2 != RC::SUCCESS) {
       LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
