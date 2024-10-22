@@ -66,6 +66,8 @@ private:
       Expression* arithmetic_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
   RC bind_aggregate_expression(
       Expression* aggregate_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
+  RC bind_field_expression_aggr(
+      Expression* field_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions);
 
 private:
   BinderContext &context_;

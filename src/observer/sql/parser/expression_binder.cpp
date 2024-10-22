@@ -453,7 +453,7 @@ RC ExpressionBinder::bind_aggregate_expression(
     ValueExpr *value_expr = new ValueExpr(Value(1));
     child_expr.reset(value_expr);
   } else {
-    rc = bind_expression(child_expr.get(), child_bound_expressions);
+    rc = bind_field_expression_aggr(child_expr.get(), child_bound_expressions);
     if (OB_FAIL(rc)) {
       return rc;
     }
@@ -474,5 +474,43 @@ RC ExpressionBinder::bind_aggregate_expression(
     return rc;
   }
   bound_expressions.emplace_back(std::move(aggregate_expr));
+  return RC::SUCCESS;
+}
+
+RC ExpressionBinder::bind_field_expression_aggr(
+    Expression* field_expr, vector<unique_ptr<Expression>> &bound_expressions)
+{
+  if(nullptr == field_expr) {
+    return RC::SUCCESS;
+  }
+  Table* table;
+  FieldExpr *fep = static_cast<FieldExpr *>(field_expr);
+  std::string now_table_name = fep->table_name();
+  if (now_table_name.size() == 0) {
+    if (context_.query_tables().size() != 1) {
+      LOG_INFO("cannot determine table for field: %s", fep->field_name());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    table = context_.query_tables()[0];
+  }else{
+    table = context_.find_table(now_table_name.c_str());
+    if (nullptr == table) {
+      LOG_INFO("no such table in from list: %s", now_table_name.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+  }
+  const TableMeta &table_meta = table->table_meta();
+  const FieldMeta *field_meta = table_meta.field(fep->field_name());
+
+  if (nullptr == field_meta) {
+    LOG_INFO("no such field in table: %s.%s", now_table_name.c_str(), fep->field_name());
+    return RC::SCHEMA_FIELD_MISSING;
+  }
+  Field      field(table, table_meta.field(fep->field_name()));
+  FieldExpr* new_field_expr = new FieldExpr(field);
+  bound_expressions.emplace_back(std::move(new_field_expr));
+  
+  // fep->set_field(field);
+  // bound_expressions.emplace_back(std::move(fep));
   return RC::SUCCESS;
 }
