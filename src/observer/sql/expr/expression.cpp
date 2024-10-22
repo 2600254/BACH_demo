@@ -68,6 +68,10 @@ RC FieldExpr::get_column(Chunk &chunk, Column &column)
   return RC::SUCCESS;
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////
+
+
 bool ValueExpr::equal(const Expression &other) const
 {
   if (this == &other) {
@@ -162,6 +166,7 @@ ComparisonExpr::ComparisonExpr(CompOp comp, Expression* left, Expression* right)
 {}
 
 ComparisonExpr::~ComparisonExpr() {}
+
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
@@ -356,6 +361,13 @@ RC ComparisonExpr::compare_column(const Column &left, const Column &right, std::
   }
   return rc;
 }
+
+// void ComparisonExpr::set_left(const std::unique_ptr<Expression> left) {
+//   left_ = std::move(left);
+// }
+// void ComparisonExpr::set_right(const std::unique_ptr<Expression> right) {
+//   right_ = std::move(right);
+// }
 
 ////////////////////////////////////////////////////////////////////////////////
 ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &children)

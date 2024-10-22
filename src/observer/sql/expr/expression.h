@@ -139,7 +139,6 @@ public:
 
   virtual std::string alias() const { return alias_; }
   virtual void set_alias(std::string alias) { alias_ = alias; }
-
   /**
    * @brief 用于 ComparisonExpr 获得比较结果 `select`。
    */
@@ -453,6 +452,9 @@ public:
     }
     return RC::SUCCESS;
   }
+
+  void set_left(std::unique_ptr<Expression> left) { left_ = std::move(left); }
+  void set_right(std::unique_ptr<Expression> right) { right_ = std::move(right); }
 
 private:
   CompOp                      comp_;

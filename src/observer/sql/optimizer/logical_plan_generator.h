@@ -22,7 +22,6 @@ See the Mulan PSL v2 for more details. */
 class Stmt;
 class CalcStmt;
 class SelectStmt;
-class FilterUnit;
 class FilterStmt;
 class InsertStmt;
 class DeleteStmt;
@@ -50,6 +49,4 @@ private:
 
   RC create_group_by_plan(SelectStmt *select_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(OrderByStmt *groupby_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
-
-  int implicit_cast_cost(AttrType from, AttrType to);
 };

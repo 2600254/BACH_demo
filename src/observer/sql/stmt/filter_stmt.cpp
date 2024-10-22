@@ -20,6 +20,15 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "common/lang/defer.h"
 
+
+int FilterStmt::implicit_cast_cost(AttrType from, AttrType to)
+{
+  if (from == to) {
+    return 0;
+  }
+  return DataType::type_instance(from)->cast_cost(to);
+}
+
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       Expression *condition, FilterStmt *&stmt)
 {
@@ -38,6 +47,52 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
         LOG_WARN("invalid compare operator : %d", comp);
         return RC::INVALID_ARGUMENT;
       }
+      RC rc = RC::SUCCESS;
+
+      unique_ptr<Expression> left = std::move(cmp_expr->left());
+      unique_ptr<Expression> right = std::move(cmp_expr->right());
+
+      if (left->value_type() != right->value_type()) {
+        auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
+        auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
+        if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+          ExprType left_type = left->type();
+          auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
+          if (left_type == ExprType::VALUE) {
+            Value left_val;
+            if (OB_FAIL(rc = cast_expr->try_get_value(left_val)))
+            {
+              LOG_WARN("failed to get value from left child", strrc(rc));
+              return rc;
+            }
+            left = make_unique<ValueExpr>(left_val);
+          } else {
+            left = std::move(cast_expr);
+          }
+        // } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
+        } else if (right_to_left_cost <= left_to_right_cost) {
+          ExprType right_type = right->type();
+          auto cast_expr = make_unique<CastExpr>(std::move(right), left->value_type());
+          if (right_type == ExprType::VALUE) {
+            Value right_val;
+            if (OB_FAIL(rc = cast_expr->try_get_value(right_val)))
+            {
+              LOG_WARN("failed to get value from right child", strrc(rc));
+              return rc;
+            }
+            right = make_unique<ValueExpr>(right_val);
+          } else {
+            right = std::move(cast_expr);
+          }
+
+        } else {
+          LOG_WARN("unsupported cast from %s to %s", attr_type_to_string(left->value_type()), attr_type_to_string(right->value_type()));
+          return RC::UNSUPPORTED;
+        }
+      }
+
+      cmp_expr->set_left(std::move(left));
+      cmp_expr->set_right(std::move(right));
     }else if(expr->type() == ExprType::CONJUNCTION){
       ConjunctionExpr* conj_expr = static_cast<ConjunctionExpr*>(expr);
       if(conj_expr->conjunction_type() != ConjunctionExpr::Type::AND && conj_expr->conjunction_type() != ConjunctionExpr::Type::OR){
@@ -91,32 +146,4 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   tmp_stmt->condition_expr_ = std::unique_ptr<Expression>(condition);
   stmt = tmp_stmt;
   return rc;
-}
-
-RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
-{
-  if (common::is_blank(attr.relation_name.c_str())) {
-    table = default_table;
-  } else if (nullptr != tables) {
-    auto iter = tables->find(attr.relation_name);
-    if (iter != tables->end()) {
-      table = iter->second;
-    }
-  } else {
-    table = db->find_table(attr.relation_name.c_str());
-  }
-  if (nullptr == table) {
-    LOG_WARN("No such table: attr.relation_name: %s", attr.relation_name.c_str());
-    return RC::SCHEMA_TABLE_NOT_EXIST;
-  }
-
-  field = table->table_meta().field(attr.attribute_name.c_str());
-  if (nullptr == field) {
-    LOG_WARN("no such field in table: table %s, field %s", table->name(), attr.attribute_name.c_str());
-    table = nullptr;
-    return RC::SCHEMA_FIELD_NOT_EXIST;
-  }
-
-  return RC::SUCCESS;
 }
