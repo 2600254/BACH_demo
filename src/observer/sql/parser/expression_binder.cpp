@@ -206,8 +206,8 @@ RC ExpressionBinder::bind_field_expression(
     return RC::SCHEMA_FIELD_MISSING;
   }
   Field      field(table, table_meta.field(fep->field_name()));
-  fep->set_field(field);
-  bound_expressions.emplace_back(std::move(fep));
+  FieldExpr* new_field_expr = new FieldExpr(field);
+  bound_expressions.emplace_back(std::move(new_field_expr));
   return RC::SUCCESS;
 }
 
@@ -443,7 +443,7 @@ RC ExpressionBinder::bind_aggregate_expression(
     return rc;
   }
 
-  unique_ptr<Expression>        &child_expr = unbound_aggregate_expr->child();
+  unique_ptr<Expression>         child_expr = std::move(unbound_aggregate_expr->child());
   vector<unique_ptr<Expression>> child_bound_expressions;
 
   if (child_expr->type() == ExprType::STAR && aggregate_type == AggregateExpr::Type::COUNT) {
@@ -459,7 +459,6 @@ RC ExpressionBinder::bind_aggregate_expression(
       LOG_WARN("invalid children number of aggregate expression: %d", child_bound_expressions.size());
       return RC::INVALID_ARGUMENT;
     }
-
     if (child_bound_expressions[0].get() != child_expr.get()) {
       child_expr.reset(child_bound_expressions[0].release());
     }
@@ -471,7 +470,6 @@ RC ExpressionBinder::bind_aggregate_expression(
   if (OB_FAIL(rc)) {
     return rc;
   }
-
   bound_expressions.emplace_back(std::move(aggregate_expr));
   return RC::SUCCESS;
 }

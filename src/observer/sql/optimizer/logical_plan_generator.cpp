@@ -370,7 +370,6 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   
   // collect all aggregate expressions
   for (unique_ptr<Expression> &expression : query_expressions) {
-    LOG_INFO(" %d", expression->type());
     collector(expression);
   }
 
