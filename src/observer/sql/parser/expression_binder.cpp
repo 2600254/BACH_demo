@@ -206,8 +206,11 @@ RC ExpressionBinder::bind_field_expression(
     return RC::SCHEMA_FIELD_MISSING;
   }
   Field      field(table, table_meta.field(fep->field_name()));
-  FieldExpr* new_field_expr = new FieldExpr(field);
-  bound_expressions.emplace_back(std::move(new_field_expr));
+  // FieldExpr* new_field_expr = new FieldExpr(field);
+  // bound_expressions.emplace_back(std::move(new_field_expr));
+  
+  fep->set_field(field);
+  bound_expressions.emplace_back(std::move(fep));
   return RC::SUCCESS;
 }
 
