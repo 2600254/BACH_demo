@@ -17,22 +17,20 @@ See the Mulan PSL v2 for more details. */
 
 RC SumAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
     value_ = value;
     return RC::SUCCESS;
   }
-  
-  ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
-        attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  if (value.is_null())
-  {
+  if (value.is_null()){
     return RC::SUCCESS;
   }
+  ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
+        attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
   Value::add(value, value_, value_);
   return RC::SUCCESS;
 }
 
-RC SumAggregator::evaluate(Value& result)
+RC SumAggregator::evaluate(Value &result)
 {
   result = value_;
   return RC::SUCCESS;
@@ -40,24 +38,25 @@ RC SumAggregator::evaluate(Value& result)
 
 RC AvgAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
     value_ = value;
+    if (!value_.is_null()) {
       Value::add(count_, Value(1), count_);
+    }
+    return RC::SUCCESS;
+  }
+  if (value.is_null()){
     return RC::SUCCESS;
   }
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  if (value.is_null())
-  {
-    return RC::SUCCESS;
-  }
   Value::add(value, value_, value_);
   Value::add(count_, Value(1), count_);
   return RC::SUCCESS;
 }
 
-RC AvgAggregator::evaluate(Value& result)
+RC AvgAggregator::evaluate(Value &result)
 {
   result.set_type(AttrType::FLOATS);
   Value::divide(value_, count_, result);
@@ -66,25 +65,22 @@ RC AvgAggregator::evaluate(Value& result)
 
 RC MinAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
     value_ = value;
     return RC::SUCCESS;
   }
-
+  if (value.is_null()){
+    return RC::SUCCESS;
+  }
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  if (value_.is_null())
-  {
-    value_ = value;
-    return RC::SUCCESS;
-  }
   if (value_.compare(value) > 0) {
     value_ = value;
   }
   return RC::SUCCESS;
 }
 
-RC MinAggregator::evaluate(Value& result)
+RC MinAggregator::evaluate(Value &result)
 {
   result = value_;
   return RC::SUCCESS;
@@ -92,25 +88,22 @@ RC MinAggregator::evaluate(Value& result)
 
 RC MaxAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
     value_ = value;
     return RC::SUCCESS;
   }
-
+  if (value.is_null()){
+    return RC::SUCCESS;
+  }
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  if (value_.is_null())
-  {
-    value_ = value;
-    return RC::SUCCESS;
-  }
   if (value_.compare(value) < 0) {
     value_ = value;
   }
   return RC::SUCCESS;
 }
 
-RC MaxAggregator::evaluate(Value& result)
+RC MaxAggregator::evaluate(Value &result)
 {
   result = value_;
   return RC::SUCCESS;
@@ -118,23 +111,24 @@ RC MaxAggregator::evaluate(Value& result)
 
 RC CountAggregator::accumulate(const Value &value)
 {
-  if (value_.attr_type() == AttrType::UNDEFINED) {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
     value_ = value;
-    Value::add(count_, Value(1), count_);
+    if (!value_.is_null()) {
+      Value::add(count_, Value(1), count_);
+    }
+    return RC::SUCCESS;
+  }
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
 
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
         attr_type_to_string(value.attr_type()), attr_type_to_string(value_.attr_type()));
-  if (value.is_null())
-  {
-    return RC::SUCCESS;
-  }
   Value::add(count_, Value(1), count_);
   return RC::SUCCESS;
 }
 
-RC CountAggregator::evaluate(Value& result)
+RC CountAggregator::evaluate(Value &result)
 {
   result = count_;
   return RC::SUCCESS;

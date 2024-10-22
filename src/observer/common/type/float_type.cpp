@@ -49,7 +49,8 @@ RC FloatType::divide(const Value &left, const Value &right, Value &result) const
   if (right.get_float() > -EPSILON && right.get_float() < EPSILON) {
     // NOTE:
     // 设置为浮点数最大值是不正确的。通常的做法是设置为NULL，但是当前的miniob没有NULL概念，所以这里设置为浮点数最大值。
-    result.set_float(numeric_limits<float>::max());
+    result.set_null();
+    // result.set_float(numeric_limits<float>::max());
   } else {
     result.set_float(left.get_float() / right.get_float());
   }
@@ -91,7 +92,10 @@ RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   if (type == AttrType::INTS) {
     result.set_int(val.get_float());
-  } else {
+  } else if (type == AttrType::NULLS){
+    return RC::SUCCESS;
+  }
+  else {
     return RC::UNSUPPORTED;
   }
   return RC::SUCCESS;

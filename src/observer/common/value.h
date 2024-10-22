@@ -90,6 +90,10 @@ public:
 
   static RC cast_to(const Value &value, AttrType to_type, Value &result)
   {
+    if (value.attr_type() == AttrType::NULLS || to_type == AttrType::NULLS){
+      result = value;
+      return RC::SUCCESS;
+    }
     return DataType::type_instance(value.attr_type())->cast_to(value, to_type, result);
   }
 

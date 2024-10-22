@@ -284,6 +284,9 @@ int LogicalPlanGenerator::implicit_cast_cost(AttrType from, AttrType to)
   if (from == to) {
     return 0;
   }
+  if (from == AttrType::NULLS || to == AttrType::NULLS){
+    return 0;
+  }
   return DataType::type_instance(from)->cast_cost(to);
 }
 

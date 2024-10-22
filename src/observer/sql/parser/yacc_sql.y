@@ -844,8 +844,8 @@ comp_op:
     | NE { $$ = NOT_EQUAL; }
     | LIKE { $$ = LIKE_OP;}
     | NOT LIKE {$$ = NOT_LIKE_OP;}
-    | IS NULL_T {$$ = IS_NULL;}
-    | IS NOT NULL_T {$$ = IS_NOT_NULL;}
+    | IS NOT {$$ = IS_NOT_OP;}
+    | IS {$$ = IS_OP;}
     ;
 
 // your code here

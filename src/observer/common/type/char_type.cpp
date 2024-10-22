@@ -54,6 +54,9 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
     case AttrType::FLOATS:{
       result.set_float(atof(val.value_.pointer_value_));
     }break;
+    case AttrType::NULLS:{
+      return RC::SUCCESS;
+    }break;
     default: return RC::UNIMPLEMENTED;
   }
   return RC::SUCCESS;

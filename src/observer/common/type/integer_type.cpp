@@ -98,6 +98,8 @@ int IntegerType::cast_cost(AttrType type) const
   if (type == AttrType::CHARS){
     return 2;
   }
-  
+  if (type == AttrType::NULLS){
+    return 0;
+  }
   return INT32_MAX;
 }

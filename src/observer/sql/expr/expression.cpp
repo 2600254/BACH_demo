@@ -20,15 +20,14 @@ See the Mulan PSL v2 for more details. */
 
 using namespace std;
 
-
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  if(is_first_){
-    bool & is_first_ref = const_cast<bool&>(is_first_);
-    is_first_ref = false;
-    return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value, const_cast<int&>(index_));
-  }else{
-    return tuple.cell_at(index_,value);
+  if (is_first_) {
+    bool &is_first_ref = const_cast<bool &>(is_first_);
+    is_first_ref       = false;
+    return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value, const_cast<int &>(index_));
+  } else {
+    return tuple.cell_at(index_, value);
   }
 }
 
@@ -92,6 +91,9 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
   if (this->value_type() == value.attr_type()) {
     cast_value = value;
     return rc;
+  } else if (this->value_type() == AttrType::NULLS || cast_type_ == AttrType::NULLS) {
+    cast_value = value;
+    return rc;
   }
   rc = Value::cast_to(value, cast_type_, cast_value);
   return rc;
@@ -100,7 +102,7 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
 RC CastExpr::get_value(const Tuple &tuple, Value &result) const
 {
   Value value;
-  RC rc = child_->get_value(tuple, value);
+  RC    rc = child_->get_value(tuple, value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -111,7 +113,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result) const
 RC CastExpr::try_get_value(Value &result) const
 {
   Value value;
-  RC rc = child_->try_get_value(value);
+  RC    rc = child_->try_get_value(value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -137,7 +139,7 @@ static bool str_like(const Value &left, const Value &right)
   replace_all(raw_reg, "_", "[^']");
   replace_all(raw_reg, "%", "[^']*");
   std::regex reg(raw_reg.c_str(), std::regex_constants::ECMAScript | std::regex_constants::icase);
-  bool res = std::regex_match(left.data(), reg);
+  bool       res = std::regex_match(left.data(), reg);
   return res;
 }
 
@@ -149,14 +151,32 @@ ComparisonExpr::~ComparisonExpr() {}
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
-  RC  rc         = RC::SUCCESS;
-  // int cmp_result = left.compare(right);
+  RC rc = RC::SUCCESS;
   int cmp_result;
-  if(comp_ != LIKE_OP && comp_ != NOT_LIKE_OP)
-  {
-      cmp_result = left.compare(right);
+
+  if (left.is_null() || right.is_null()) {
+    if (!(comp_ == IS_OP) && !(comp_ == IS_NOT_OP)){
+      result = false;
+      return rc;
+    }
+    if (left.is_null() && right.is_null()) {
+      if (comp_ == IS_OP) {
+        result = true;
+        return rc;
+      }
+      if (comp_ == IS_NOT_OP){
+        result = false;
+        return rc;
+      }
+    } 
+
   }
-  result         = false;
+
+  if (comp_ != LIKE_OP && comp_ != NOT_LIKE_OP) {
+    cmp_result = left.compare(right);
+  }
+
+  result = false;
   switch (comp_) {
     case EQUAL_TO: {
       result = (0 == cmp_result);
@@ -176,12 +196,20 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     case GREAT_THAN: {
       result = (cmp_result > 0);
     } break;
-    case LIKE_OP :{
-      result = str_like(left,right);
+    case LIKE_OP: {
+      result = str_like(left, right);
     } break;
-    case NOT_LIKE_OP:{
-      result = !str_like(left,right);
+    case NOT_LIKE_OP: {
+      result = !str_like(left, right);
     } break;
+    case IS_OP: {
+      result = (cmp_result == 0);
+      break;
+    }
+    case IS_NOT_OP: {
+      result = (cmp_result!= 0);
+      break;
+    }
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
       rc = RC::INTERNAL;
@@ -194,8 +222,8 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
 RC ComparisonExpr::try_get_value(Value &cell) const
 {
   if (left_->type() == ExprType::VALUE && right_->type() == ExprType::VALUE) {
-    ValueExpr *  left_value_expr  = static_cast<ValueExpr *>(left_.get());
-    ValueExpr *  right_value_expr = static_cast<ValueExpr *>(right_.get());
+    ValueExpr   *left_value_expr  = static_cast<ValueExpr *>(left_.get());
+    ValueExpr   *right_value_expr = static_cast<ValueExpr *>(right_.get());
     const Value &left_cell        = left_value_expr->get_value();
     const Value &right_cell       = right_value_expr->get_value();
 
@@ -622,17 +650,14 @@ RC AggregateExpr::get_value(const Tuple &tuple, Value &value) const
   LOG_INFO("AggregateExpr::get_value is_first_");
   LOG_INFO("AggregateExpr::get_value table_name_:%d",index_);
   TupleCellSpec spec(name());
-  //int index = 0;
-  // spec.set_agg_type(get_aggr_func_type());
-  if(is_first_)
-  {
-    bool & is_first_ref = const_cast<bool&>(is_first_);
-    is_first_ref = false;
-    return tuple.find_cell(spec,value,const_cast<int&>(index_));
-  }
-  else
-  {
-    return tuple.cell_at(index_,value);
+  // int index = 0;
+  //  spec.set_agg_type(get_aggr_func_type());
+  if (is_first_) {
+    bool &is_first_ref = const_cast<bool &>(is_first_);
+    is_first_ref       = false;
+    return tuple.find_cell(spec, value, const_cast<int &>(index_));
+  } else {
+    return tuple.cell_at(index_, value);
   }
 }
 
