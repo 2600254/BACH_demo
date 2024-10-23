@@ -211,6 +211,7 @@ RC ExpressionBinder::bind_field_expression(
   }
   Field      field(table, table_meta.field(fep->field_name()));
   FieldExpr* new_field_expr = new FieldExpr(field);
+  new_field_expr->set_name(fep->field_name());
   bound_expressions.emplace_back(std::move(new_field_expr));
   return RC::SUCCESS;
 }

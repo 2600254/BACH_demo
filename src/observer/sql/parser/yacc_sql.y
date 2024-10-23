@@ -614,7 +614,6 @@ join_list:
       }
       $$->join_relations.emplace_back($3);
       $$->conditions.emplace_back($5);
-      delete $5;
       free($3);
     }
     ;
