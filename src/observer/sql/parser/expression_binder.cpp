@@ -486,7 +486,7 @@ RC ExpressionBinder::bind_expression_list_expression(
     return RC::SUCCESS;
   }
   ExprListExpr* expr_list = static_cast<ExprListExpr *>(expr_list_expr);
-  std::vector<std::unique_ptr<Expression>> child_bound_expressions = expr_list->children();
+  std::vector<std::unique_ptr<Expression>> child_bound_expressions = std::move(expr_list->exprs());
   std::vector<std::unique_ptr<Expression>> list_bound_expressions;
   for (auto &child_expr : child_bound_expressions) {
     RC rc = bind_expression(child_expr.get(), list_bound_expressions);

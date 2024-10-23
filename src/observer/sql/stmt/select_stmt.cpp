@@ -116,14 +116,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       return rc;
     }
   }
-
-  for(unique_ptr<Expression> &expression : bound_expressions) {
-    if(expression->type() == ExprType::AGGREGATION){
-      AggregateExpr *agg_expr = static_cast<AggregateExpr *>(expression.get());
-      LOG_INFO(" %d", agg_expr->child()->type());
-    }
-  }
-
+  
   vector<unique_ptr<Expression>> group_by_expressions;
   for (auto expression : select_sql.group_by) {
     RC rc = expression_binder.bind_expression(expression, group_by_expressions);

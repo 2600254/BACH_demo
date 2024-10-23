@@ -133,7 +133,8 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
     }else if(expr->type() == ExprType::SUBQUERY){
       SubQueryExpr* subquery_expr = static_cast<SubQueryExpr*>(expr);
       //生成子查询的select stmt
-      return subquery_expr->generate_select_stmt(db, *tables);
+      RC rc = subquery_expr->generate_select_stmt(db, *tables);
+      return rc;
     }
     return RC::SUCCESS;
   };

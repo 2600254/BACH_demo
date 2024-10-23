@@ -296,6 +296,7 @@ public:
 class SelectStmt;
 class LogicalOperator;
 class PhysicalOperator;
+
 class SubQueryExpr : public Expression
 {
 public:
@@ -318,12 +319,21 @@ public:
   RC generate_logical_oper();
   RC generate_physical_oper();
 
+  bool has_opened() const{
+    return is_open_;
+  }
+
+  void set_opened(){
+    is_open_ = true;
+  }
+
 
 private:
   std::unique_ptr<SelectSqlNode> sql_node_;
   std::unique_ptr<SelectStmt> stmt_;
   std::unique_ptr<LogicalOperator> logical_oper_;
   std::unique_ptr<PhysicalOperator> physical_oper_;
+  bool is_open_ = false;
 };
 
 /**
@@ -744,7 +754,7 @@ public:
   {
     cur_idx_ = 0;
   }
-
+  
   RC get_value(const Tuple &tuple, Value &value) const override
   {
     if (cur_idx_ >= static_cast<int>(exprs_.size())) {
@@ -763,9 +773,6 @@ public:
 
   int expr_size() const { return exprs_.size(); }
 
-  std::vector<std::unique_ptr<Expression>> &children() const { return exprs_; }
-
-  
   void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
   {
     if (filter(this)) {

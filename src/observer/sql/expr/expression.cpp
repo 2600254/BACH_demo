@@ -241,11 +241,43 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
   SubQueryExpr* right_subquery_expr = nullptr;
   if(left_->type() == ExprType::SUBQUERY){
     left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
-    left_subquery_expr->open(nullptr);
+    if(!left_subquery_expr->has_opened()){
+      left_subquery_expr->open(nullptr);
+      left_subquery_expr->set_opened();
+    }
   }
   if(right_->type() == ExprType::SUBQUERY){
     right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
-    right_subquery_expr->open(nullptr);
+    if(!right_subquery_expr->has_opened()){
+      right_subquery_expr->open(nullptr);
+      right_subquery_expr->set_opened();
+    }
+  }
+  if(left_->type() == ExprType::CAST){
+    CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
+    if(cast_expr->child()->type() == ExprType::SUBQUERY){
+      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
+      if(!subquery_expr->has_opened()){
+        subquery_expr->open(nullptr);
+        subquery_expr->set_opened();
+      }
+    }else if(cast_expr->child()->type() == ExprType::EXPRLIST){
+      ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+      eler->reset();
+    }
+  }
+  if(right_->type() == ExprType::CAST){
+    CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
+    if(cast_expr->child()->type() == ExprType::SUBQUERY){
+      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
+      if(!subquery_expr->has_opened()){
+        subquery_expr->open(nullptr);
+        subquery_expr->set_opened();
+      }
+    }else if(cast_expr->child()->type() == ExprType::EXPRLIST){
+      ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+      eler->reset();
+    }
   }
 
 
@@ -274,6 +306,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
     bool res = false; // 有一样的值
     while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
+      LOG_INFO("left value: %s, right value: %s", left_value.data(), right_value.data());
       if(left_value.compare(right_value) == 0) {
         res = true;
       }
@@ -738,6 +771,7 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
 
 SubQueryExpr::SubQueryExpr(const SelectSqlNode& sql_node) {
   sql_node_ = std::make_unique<SelectSqlNode>(sql_node);
+  is_open_ = false;
 }
 
 bool SubQueryExpr::has_more_row(const Tuple &tuple) const
