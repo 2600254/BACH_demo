@@ -306,7 +306,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     }
     bool res = false; // 有一样的值
     while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
-      LOG_INFO("left value: %s, right value: %s", left_value.data(), right_value.data());
       if(left_value.compare(right_value) == 0) {
         res = true;
       }
@@ -315,6 +314,29 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     if(right_subquery_expr != nullptr){
       right_subquery_expr->close();
     }
+    if(left_subquery_expr != nullptr){
+      left_subquery_expr->close();
+    }
+
+    //关闭子查询物理计划
+  if(left_->type() == ExprType::CAST){
+    CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
+    if(cast_expr->child()->type() == ExprType::SUBQUERY){
+      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
+      if(subquery_expr->has_opened()){
+        subquery_expr->close();
+      }
+    }
+  }
+  if(right_->type() == ExprType::CAST){
+    CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
+    if(cast_expr->child()->type() == ExprType::SUBQUERY){
+      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
+      if(subquery_expr->has_opened()){
+        subquery_expr->close();
+      }
+    }
+  }
     return rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
   }else{
 
@@ -791,7 +813,10 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const{
 
 RC SubQueryExpr::open(Trx* trx) {return physical_oper_->open(trx);}
 
-RC SubQueryExpr::close() {return physical_oper_->close();}
+RC SubQueryExpr::close() {
+  is_open_ = false;
+  return physical_oper_->close();
+}
 
 RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables){
   Stmt * select_stmt = nullptr;
