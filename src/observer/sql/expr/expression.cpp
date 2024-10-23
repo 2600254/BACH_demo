@@ -289,10 +289,10 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     return RC::RECORD_EOF == rc ? RC::SUCCESS : rc;
   }
 
-  if(left_->type() == ExprType::SUBQUERY && right_->type() == ExprType::SUBQUERY){
-    LOG_WARN("left and right expression are all subquery");
-    return RC::INVALID_ARGUMENT;
-  }
+  // if(left_->type() == ExprType::SUBQUERY && right_->type() == ExprType::SUBQUERY){
+  //   LOG_WARN("left and right expression are all subquery");
+  //   return RC::INVALID_ARGUMENT;
+  // }
 
   if(comp_ == IN_OP || comp_ == NOT_IN_OP){
     rc = left_->get_value(tuple, left_value);
@@ -310,15 +310,29 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
         res = true;
       }
     }
-    value.set_boolean(comp_ == IN_OP ? res : !res);
-    if(right_subquery_expr != nullptr){
-      right_subquery_expr->close();
+    bool_value = comp_ == IN_OP ? res : !res;
+    rc = rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
+  }else{
+    //如果不是in/not in,那么每次比较两侧都仅有一个值
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
     }
-    if(left_subquery_expr != nullptr){
-      left_subquery_expr->close();
+    rc = right_->get_value(tuple, right_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      return rc;
     }
-
-    //关闭子查询物理计划
+    rc = compare_value(left_value, right_value, bool_value);
+  }
+  //关闭子查询物理计划
+  if(right_subquery_expr != nullptr){
+    right_subquery_expr->close();
+  }
+  if(left_subquery_expr != nullptr){
+    left_subquery_expr->close();
+  }
   if(left_->type() == ExprType::CAST){
     CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
     if(cast_expr->child()->type() == ExprType::SUBQUERY){
@@ -337,31 +351,9 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
       }
     }
   }
-    return rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
-  }else{
-
-    rc = left_->get_value(tuple, left_value);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-      return rc;
-    }
-    rc = right_->get_value(tuple, right_value);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-      return rc;
-    }
-    rc = compare_value(left_value, right_value, bool_value);
-    if (rc == RC::SUCCESS) {
-      value.set_boolean(bool_value);
-    }
-    if(right_subquery_expr != nullptr){
-      right_subquery_expr->close();
-    }
-    if(left_subquery_expr != nullptr){
-      left_subquery_expr->close();
-    }
+  if (rc == RC::SUCCESS) {
+    value.set_boolean(bool_value);
   }
-  value.set_boolean(bool_value);
   return rc;
   
 }
@@ -820,7 +812,8 @@ RC SubQueryExpr::close() {
 
 RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables){
   Stmt * select_stmt = nullptr;
-  if (RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt); OB_FAIL(rc)) {
+  RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt); 
+  if (OB_FAIL(rc)) {
     return rc;
   }
   if (select_stmt->type() != StmtType::SELECT) {
@@ -830,6 +823,13 @@ RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::stri
   if (ss->query_expressions().size() > 1) {
     return RC::INVALID_ARGUMENT;
   }
+  // if(comp_ >= EQUAL_TO && comp_ <= GREAT_EQUAL){
+  //   if(ss->query_expressions()[0]->type() != ExprType::UNBOUND_AGGREGATION 
+  //   && ss->query_expressions()[0]->type() != ExprType::AGGREGATION){
+  //     LOG_DEBUG("sub query is not aggregation function");
+  //     return RC::INVALID_ARGUMENT;
+  //   }
+  // }
   stmt_ = std::unique_ptr<SelectStmt>(ss);
   return RC::SUCCESS;
 }

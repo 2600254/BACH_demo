@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/field/field.h"
 #include "sql/expr/aggregator.h"
 #include "storage/common/chunk.h"
+#include "sql/stmt/select_stmt.h"
 
 class Tuple;
 
@@ -327,6 +328,10 @@ public:
     is_open_ = true;
   }
 
+  CompOp comp() const {return comp_;}
+
+  void set_comp(CompOp comp) {comp_ = comp;}
+
 
 private:
   std::unique_ptr<SelectSqlNode> sql_node_;
@@ -334,6 +339,7 @@ private:
   std::unique_ptr<LogicalOperator> logical_oper_;
   std::unique_ptr<PhysicalOperator> physical_oper_;
   bool is_open_ = false;
+  CompOp comp_;
 };
 
 /**
