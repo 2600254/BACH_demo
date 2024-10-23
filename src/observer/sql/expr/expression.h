@@ -763,6 +763,8 @@ public:
 
   int expr_size() const { return exprs_.size(); }
 
+  std::vector<std::unique_ptr<Expression>> &children() const { return exprs_; }
+
   
   void traverse(const std::function<void(Expression*)>& func, const std::function<bool(Expression*)>& filter) override
   {

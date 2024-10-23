@@ -137,6 +137,10 @@ RC ExpressionBinder::bind_expression(Expression* expr, vector<unique_ptr<Express
       ASSERT(false, "shouldn't be here");
     } break;
 
+    case ExprType::EXPRLIST:{
+      return bind_expression_list_expression(expr, bound_expressions);
+    }break;
+
     default: {
       LOG_WARN("unknown expression type: %d", static_cast<int>(expr->type()));
       return RC::INTERNAL;
@@ -471,5 +475,25 @@ RC ExpressionBinder::bind_aggregate_expression(
     return rc;
   }
   bound_expressions.emplace_back(std::move(aggregate_expr));
+  return RC::SUCCESS;
+}
+
+
+RC ExpressionBinder::bind_expression_list_expression(
+    Expression* expr_list_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions){
+  if (nullptr == expr_list_expr) {
+    return RC::SUCCESS;
+  }
+  ExprListExpr* expr_list = static_cast<ExprListExpr *>(expr_list_expr);
+  std::vector<std::unique_ptr<Expression>> child_bound_expressions = expr_list->children();
+  std::vector<std::unique_ptr<Expression>> list_bound_expressions;
+  for (auto &child_expr : child_bound_expressions) {
+    RC rc = bind_expression(child_expr.get(), list_bound_expressions);
+    if (OB_FAIL(rc)) {
+      return rc;
+    }
+  }
+  ExprListExpr* expr_list_expr_new = new ExprListExpr(std::move(list_bound_expressions));
+  bound_expressions.emplace_back(std::move(expr_list_expr_new));
   return RC::SUCCESS;
 }
