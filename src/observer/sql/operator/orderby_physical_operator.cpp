@@ -58,6 +58,7 @@ RC OrderByPhysicalOperator::fetch_and_sort_tables()
       auto &expr = unit->expr();
       Value cell;
       expr->get_value(*children_[0]->current_tuple(), cell);//取出每行中要参与排序的cell
+      LOG_INFO("cell: %s", cell.to_string().c_str());
       pair_cell.emplace_back(cell);
     }
     pair_sort_table.emplace_back(std::make_pair(pair_cell, index++));//将每行数据放入排序的内存中

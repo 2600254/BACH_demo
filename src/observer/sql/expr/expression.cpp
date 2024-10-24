@@ -16,18 +16,30 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/tuple.h"
 #include <regex>
 #include <string>
+#include <iomanip>
+#include "common/lang/string.h"
 #include "sql/expr/arithmetic_operator.hpp"
+#include "sql/optimizer/logical_plan_generator.h"
+#include "sql/optimizer/physical_plan_generator.h"
+#include "sql/stmt/select_stmt.h"
+#include "sql/parser/parse_defs.h"
 
 using namespace std;
 
-RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
+RC FieldExpr::get_value(const Tuple &tuple, Value &value)
 {
-  if (is_first_) {
-    bool &is_first_ref = const_cast<bool &>(is_first_);
-    is_first_ref       = false;
-    return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value, const_cast<int &>(index_));
-  } else {
-    return tuple.cell_at(index_, value);
+  LOG_INFO("%s", tuple.to_string().c_str());
+  const char* table_name_str = table_name();
+  if(table_name_str == nullptr){
+    table_name_str = field_.table_name();
+  }
+  LOG_INFO("table_name: %s, field_name: %s", table_name_str, field_name());
+  if(is_first_){
+    bool & is_first_ref = const_cast<bool&>(is_first_);
+    is_first_ref = false;
+    return tuple.find_cell(TupleCellSpec(table_name_str, field_name()), value, const_cast<int&>(index_));
+  }else{
+    return tuple.cell_at(index_,value);
   }
 }
 
@@ -55,6 +67,10 @@ RC FieldExpr::get_column(Chunk &chunk, Column &column)
   return RC::SUCCESS;
 }
 
+
+/////////////////////////////////////////////////////////////////////////////////
+
+
 bool ValueExpr::equal(const Expression &other) const
 {
   if (this == &other) {
@@ -67,7 +83,7 @@ bool ValueExpr::equal(const Expression &other) const
   return value_.compare(other_value_expr.get_value()) == 0;
 }
 
-RC ValueExpr::get_value(const Tuple &tuple, Value &value) const
+RC ValueExpr::get_value(const Tuple &tuple, Value &value)
 {
   value = value_;
   return RC::SUCCESS;
@@ -99,14 +115,56 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
   return rc;
 }
 
-RC CastExpr::get_value(const Tuple &tuple, Value &result) const
+RC CastExpr::get_value(const Tuple &tuple, Value &result)
 {
   Value value;
-  RC    rc = child_->get_value(tuple, value);
+  if(child_->type() == ExprType::SUBQUERY){
+    SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(child_.get());
+    if(!subquery_expr->has_opened()){
+      subquery_expr->open(nullptr);
+      subquery_expr->set_opened();
+    }
+    if(subquery_expr->is_single_value() && subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
+      // 单值子查询，直接获取值,替换原来的子查询表达式
+      RC rc = subquery_expr->get_value(tuple, value);
+      if(rc != RC::SUCCESS){
+        LOG_WARN("subquery return no value");
+        return rc;
+      }
+      
+      subquery_expr->close();
+      ValueExpr* value_expr = new ValueExpr(value);
+      std::unique_ptr<ValueExpr> value_expr_ptr(value_expr);
+      set_child(std::move(value_expr_ptr));
+    }else{
+      // 多值子查询，获取值后转换为ExprListExpr，替换原来的子查询表达式
+      std::vector<Expression*> exprList;
+      RC rc = RC::SUCCESS;
+      Value subquery_value;
+      while (RC::SUCCESS == (rc = subquery_expr->get_value(tuple, subquery_value))) {
+        ValueExpr* value_expr = new ValueExpr(subquery_value);
+        exprList.push_back(value_expr);
+      }
+      subquery_expr->close();
+      if(subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
+        if(exprList.size() != 1){
+          LOG_WARN("subquery return more than one value or no value");
+          return rc;
+        }
+        if(exprList.size() == 1){
+          set_child(std::unique_ptr<Expression>(exprList[0]));
+        }
+      }else{
+        ExprListExpr* expr_list_expr = new ExprListExpr(std::move(exprList));
+        std::unique_ptr<ExprListExpr> expr_list_expr_ptr(expr_list_expr);
+        set_child(std::move(expr_list_expr_ptr));
+      }
+    }
+  }
+  RC rc = child_->get_value(tuple, value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
-
   return cast(value, result);
 }
 
@@ -147,7 +205,12 @@ ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_
     : comp_(comp), left_(std::move(left)), right_(std::move(right))
 {}
 
+ComparisonExpr::ComparisonExpr(CompOp comp, Expression* left, Expression* right)
+    : comp_(comp), left_(left), right_(right)
+{}
+
 ComparisonExpr::~ComparisonExpr() {}
+
 
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
@@ -236,33 +299,78 @@ RC ComparisonExpr::try_get_value(Value &cell) const
     }
     return rc;
   }
-
   return RC::INVALID_ARGUMENT;
 }
 
-RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
+RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
 {
   Value left_value;
   Value right_value;
-
-  RC rc = left_->get_value(tuple, left_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-    return rc;
-  }
-  rc = right_->get_value(tuple, right_value);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-    return rc;
-  }
-
+  
   bool bool_value = false;
+  RC rc = RC::SUCCESS;
+  if (comp_ == EXISTS_OP || comp_ == NOT_EXISTS_OP) {
+    rc = right_->get_value(tuple, right_value);
+    value.set_boolean(comp_ == EXISTS_OP ? rc == RC::SUCCESS : rc == RC::RECORD_EOF);
+    return RC::RECORD_EOF == rc ? RC::SUCCESS : rc;
+  }
 
-  rc = compare_value(left_value, right_value, bool_value);
+  if(comp_ == IN_OP || comp_ == NOT_IN_OP){
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    //右侧如果是一个值list 比如 id in (1,2,3)
+    if(right_->type() == ExprType::EXPRLIST){
+      static_cast<ExprListExpr*>(right_.get())->reset();
+    }
+
+    if(left_->type() == ExprType::CAST){
+      CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
+      if(cast_expr->child()->type() == ExprType::EXPRLIST){
+        ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+        eler->reset();
+      }
+    }
+    if(right_->type() == ExprType::CAST){
+      CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
+      if(cast_expr->child()->type() == ExprType::EXPRLIST){
+        ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+        eler->reset();
+      }
+    }
+    bool res = false; // 有一样的值
+    while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
+      if(left_value.compare(right_value) == 0) {
+        res = true;
+      }
+    }
+    if(rc != RC::RECORD_EOF){
+      return rc;
+    }
+    bool_value = comp_ == IN_OP ? res : !res;
+    rc = rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
+  }else{
+    //如果不是in/not in,那么每次比较两侧都仅有一个值
+    rc = left_->get_value(tuple, left_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    rc = right_->get_value(tuple, right_value);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      return rc;
+    }
+    rc = compare_value(left_value, right_value, bool_value);
+  }
+
   if (rc == RC::SUCCESS) {
     value.set_boolean(bool_value);
   }
   return rc;
+  
 }
 
 RC ComparisonExpr::eval(Chunk &chunk, std::vector<uint8_t> &select)
@@ -316,12 +424,19 @@ RC ComparisonExpr::compare_column(const Column &left, const Column &right, std::
   return rc;
 }
 
+// void ComparisonExpr::set_left(const std::unique_ptr<Expression> left) {
+//   left_ = std::move(left);
+// }
+// void ComparisonExpr::set_right(const std::unique_ptr<Expression> right) {
+//   right_ = std::move(right);
+// }
+
 ////////////////////////////////////////////////////////////////////////////////
 ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &children)
     : conjunction_type_(type), children_(std::move(children))
 {}
 
-RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
+RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value)
 {
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
@@ -487,7 +602,7 @@ RC ArithmeticExpr::execute_calc(
   return rc;
 }
 
-RC ArithmeticExpr::get_value(const Tuple &tuple, Value &value) const
+RC ArithmeticExpr::get_value(const Tuple &tuple, Value &value)
 {
   RC rc = RC::SUCCESS;
 
@@ -645,7 +760,7 @@ unique_ptr<Aggregator> AggregateExpr::create_aggregator() const
   return aggregator;
 }
 
-RC AggregateExpr::get_value(const Tuple &tuple, Value &value) const
+RC AggregateExpr::get_value(const Tuple &tuple, Value &value)
 {
   LOG_INFO("AggregateExpr::get_value is_first_");
   LOG_INFO("AggregateExpr::get_value table_name_:%d",index_);
@@ -678,4 +793,75 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
     rc = RC::INVALID_ARGUMENT;
   }
   return rc;
+}
+
+SubQueryExpr::SubQueryExpr(const SelectSqlNode& sql_node) {
+  sql_node_ = std::make_unique<SelectSqlNode>(sql_node);
+  is_open_ = false;
+  is_single_value_ = false;
+}
+
+bool SubQueryExpr::has_more_row(const Tuple &tuple) const
+{
+  return physical_oper_->next() != RC::RECORD_EOF;
+}
+
+RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
+  physical_oper_->set_parent_tuple(&tuple);
+  // 每次返回一行的第一个 cell
+  RC rc = physical_oper_->next();
+  if (RC::SUCCESS != rc) {
+    return rc;
+  }
+  return physical_oper_->current_tuple()->cell_at(0, value);
+}
+
+RC SubQueryExpr::open(Trx* trx) {return physical_oper_->open(trx);}
+
+RC SubQueryExpr::close() {
+  is_open_ = false;
+  return physical_oper_->close();
+}
+
+RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables){
+  Stmt * select_stmt = nullptr;
+  RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt); 
+  if (OB_FAIL(rc)) {
+    return rc;
+  }
+  if (select_stmt->type() != StmtType::SELECT) {
+    return RC::INVALID_ARGUMENT;
+  }
+  SelectStmt* ss = static_cast<SelectStmt*>(select_stmt);
+  if (ss->query_expressions().size() > 1) {
+    return RC::INVALID_ARGUMENT;
+  }
+  //判断subquery中是否是聚合函数，如果是聚合函数那么subquery返回的结果是单值
+  if(ss->query_expressions()[0]->type() == ExprType::UNBOUND_AGGREGATION 
+    || ss->query_expressions()[0]->type() == ExprType::AGGREGATION){
+      is_single_value_ = true;
+  }
+  if(comp_ >= EQUAL_TO && comp_ <= GREAT_THAN){
+    if(!is_single_value_ && ss->filter_stmt() == nullptr){
+      return RC::INVALID_ARGUMENT;
+    }
+  }
+  stmt_ = std::unique_ptr<SelectStmt>(ss);
+  return RC::SUCCESS;
+}
+RC SubQueryExpr::generate_logical_oper(){
+  LogicalPlanGenerator lpg;
+  if (RC rc = lpg.create(stmt_.get(), logical_oper_); OB_FAIL(rc)) {
+    LOG_WARN("subquery logical oper generate failed. return %s", strrc(rc));
+    return rc;
+  }
+  return RC::SUCCESS;
+}
+RC SubQueryExpr::generate_physical_oper(){
+  PhysicalPlanGenerator ppg;
+  if (RC rc = ppg.create(*logical_oper_, physical_oper_); OB_FAIL(rc)) {
+    LOG_WARN("subquery physical oper generate failed. return %s", strrc(rc));
+    return rc;
+  }
+  return RC::SUCCESS;
 }

@@ -60,12 +60,12 @@ RC ExpressionIterator::iterate_child_expr(Expression &expr, function<RC(unique_p
 
     case ExprType::AGGREGATION: {
       auto &aggregate_expr = static_cast<AggregateExpr &>(expr);
+      LOG_INFO("aggregate_expr type: %d", aggregate_expr.aggregate_type());
       rc = callback(aggregate_expr.child());
     } break;
 
     case ExprType::NONE:
     case ExprType::STAR:
-    case ExprType::UNBOUND_FIELD:
     case ExprType::FIELD:
     case ExprType::VALUE: {
       // Do nothing

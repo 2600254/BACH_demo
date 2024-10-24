@@ -100,6 +100,7 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         FROM
         WHERE
         AND
+        OR
         SET
         ON
         LOAD
@@ -123,6 +124,8 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
         NE
         NOT
         LIKE
+        IN
+        EXISTS
         UNIQUE
         ORDER
         ASC
@@ -132,18 +135,17 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
   ParsedSqlNode *                            sql_node;
-  ConditionSqlNode *                         condition;
+  Expression *                               condition;
   Value *                                    value;
   enum CompOp                                comp;
   RelAttrSqlNode *                           rel_attr;
   std::vector<AttrInfoSqlNode> *             attr_infos;
   AttrInfoSqlNode *                          attr_info;
   Expression *                               expression;
-  std::vector<std::unique_ptr<Expression>> * expression_list;
+  std::vector<Expression*> *                 expression_list;
   UpdateKV *                                 update_kv;
   std::vector<UpdateKV> *                    update_kv_list;
   std::vector<Value> *                       value_list;
-  std::vector<ConditionSqlNode> *            condition_list;
   std::vector<RelAttrSqlNode> *              rel_attr_list;
   std::vector<std::string> *                 relation_list;
   InnerJoinSqlNode *                inner_joins;
@@ -174,12 +176,13 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
+%type <comp>                exists_op
 %type <rel_attr>            rel_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
-%type <condition_list>      where
-%type <condition_list>      condition_list
+%type <expression>          where
+%type <expression>          sub_query_expr
 %type <string>              storage_format
 %type <relation_list>       idx_col_list
 %type <expression>          expression
@@ -219,6 +222,9 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 
 %left '+' '-'
 %left '*' '/'
+
+%left OR
+%left AND
 %nonassoc UMINUS
 %%
 
@@ -537,9 +543,9 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     {
       $$ = new ParsedSqlNode(SCF_DELETE);
       $$->deletion.relation_name = $3;
+      $$->deletion.conditions = nullptr;
       if ($4 != nullptr) {
-        $$->deletion.conditions.swap(*$4);
-        delete $4;
+        $$->deletion.conditions = $4;
       }
       free($3);
     }
@@ -558,9 +564,9 @@ update_stmt:      /*  update 语句的语法解析树*/
         }
         delete $5;
       }
+      $$->update.conditions = nullptr;
       if ($6!= nullptr) {
-        $$->update.conditions.swap(*$6);
-        delete $6;
+        $$->update.conditions = $6;
       }
       free($2);
     }
@@ -626,19 +632,25 @@ join_list:
     /* empty */ {
       $$ = nullptr;
     }
-    | INNER JOIN ID ON condition_list join_list {
+    | INNER JOIN ID ON condition join_list {
       if (nullptr != $6) {
         $$ = $6;
       } else {
         $$ = new InnerJoinSqlNode;
       }
       $$->join_relations.emplace_back($3);
-      $$->conditions.emplace_back(*$5);
-      delete $5;
+      $$->conditions.emplace_back($5);
       free($3);
     }
     ;
 
+sub_query_expr:
+    LBRACE select_stmt RBRACE
+    {
+      $$ = new SubQueryExpr($2->selection);
+      delete $2;
+    }
+    ;
 
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT expression_list FROM from_node from_list where group_by opt_order_by
@@ -656,13 +668,13 @@ select_stmt:        /*  select 语句的语法解析树*/
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
       if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
-        delete $6;
+        $$->selection.conditions = $6;
       }
 
       if ($7 != nullptr) {
         $$->selection.group_by.swap(*$7);
         delete $7;
+        std::reverse($$->selection.group_by.begin(), $$->selection.group_by.end());
       }
 
       if ($8 != nullptr) {
@@ -686,7 +698,7 @@ calc_stmt:
 expression_list:
     expression
     {
-      $$ = new std::vector<std::unique_ptr<Expression>>;
+      $$ = new std::vector<Expression*>;
       $$->emplace_back($1);
     }
     | expression COMMA expression_list
@@ -694,7 +706,7 @@ expression_list:
       if ($3 != nullptr) {
         $$ = $3;
       } else {
-        $$ = new std::vector<std::unique_ptr<Expression>>;
+        $$ = new std::vector<Expression*>;
       }
       $$->emplace($$->begin(), $1);
     }
@@ -712,10 +724,6 @@ expression:
     | expression '/' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::DIV, $1, $3, sql_string, &@$);
     }
-    | LBRACE expression RBRACE {
-      $$ = $2;
-      $$->set_name(token_name(sql_string, &@$));
-    }
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
@@ -728,8 +736,7 @@ expression:
       delete $1;
     }
     | rel_attr {
-      RelAttrSqlNode *node = $1;
-      $$ = new UnboundFieldExpr(node->relation_name, node->attribute_name);
+      $$ = new FieldExpr($1->relation_name, $1->attribute_name);
       $$->set_name(token_name(sql_string, &@$));
       delete $1;
     }
@@ -737,6 +744,18 @@ expression:
       $$ = new StarExpr();
     }
     // your code here
+    | sub_query_expr {
+      $$ = $1;
+    }
+    | LBRACE expression_list RBRACE {
+      if ($2->size() == 1) {
+        $$ = $2->front();
+      } else {
+        $$ = new ExprListExpr(std::move(*$2));
+      }
+      $$->set_name(token_name(sql_string, &@$));
+      delete $2;
+    }
     ;
 
 aggre_type:
@@ -764,74 +783,28 @@ where:
     {
       $$ = nullptr;
     }
-    | WHERE condition_list {
+    | WHERE condition {
       $$ = $2;  
     }
     ;
-condition_list:
-    /* empty */
-    {
-      $$ = nullptr;
-    }
-    | condition {
-      $$ = new std::vector<ConditionSqlNode>;
-      $$->emplace_back(*$1);
-      delete $1;
-    }
-    | condition AND condition_list {
-      $$ = $3;
-      $$->emplace_back(*$1);
-      delete $1;
-    }
-    ;
+  
 condition:
-    rel_attr comp_op value
+    expression comp_op expression
     {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      $$ = new ComparisonExpr($2, $1, $3);
     }
-    | value comp_op value 
+    | exists_op expression
     {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      NullExpr *null_expr = new NullExpr();
+      $$ = new ComparisonExpr($1, null_expr, $2);
     }
-    | rel_attr comp_op rel_attr
+    | condition AND condition
     {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      $$ = new ConjunctionExpr(ConjunctionExpr::Type::AND, $1, $3);
     }
-    | value comp_op rel_attr
+    | condition OR condition
     {
-      $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      $$ = new ConjunctionExpr(ConjunctionExpr::Type::OR, $1, $3);
     }
     ;
 
@@ -846,6 +819,13 @@ comp_op:
     | NOT LIKE {$$ = NOT_LIKE_OP;}
     | IS NOT {$$ = IS_NOT_OP;}
     | IS {$$ = IS_OP;}
+    | IN  {$$ = IN_OP;}
+    | NOT IN {$$ = NOT_IN_OP;}
+    ;
+
+exists_op:
+    EXISTS {$$ = EXISTS_OP;}
+    | NOT EXISTS {$$ = NOT_EXISTS_OP;}
     ;
 
 // your code here

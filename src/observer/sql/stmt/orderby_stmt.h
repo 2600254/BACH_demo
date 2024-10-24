@@ -50,7 +50,9 @@ public:
 
 public:
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      const std::vector<std::unique_ptr<OrderBySqlNode>> &orderby_sql_nodes, OrderByStmt *&stmt,
+      const std::vector<std::unique_ptr<OrderBySqlNode>> &orderby_sql_nodes, 
+      // const std::vector<OrderBySqlNode> &orderby_sql_nodes, 
+      OrderByStmt *&stmt,
       std::vector<std::unique_ptr<Expression>> &&exprs);
 
 private:

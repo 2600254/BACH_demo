@@ -26,7 +26,6 @@ class RecordFileHandler;
 class RecordFileScanner;
 class ChunkFileScanner;
 class ConditionFilter;
-class DefaultConditionFilter;
 class Index;
 class IndexScanner;
 class RecordDeleter;

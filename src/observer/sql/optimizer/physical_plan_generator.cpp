@@ -142,7 +142,21 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
 
   Index     *index      = nullptr;
   ValueExpr *value_expr = nullptr;
+
+  //子查询生成物理执行计划
+  auto process_subquery = [](Expression* expr) {
+    if (expr->type() == ExprType::SUBQUERY) {
+      SubQueryExpr* sub_query_expr = static_cast<SubQueryExpr*>(expr);
+      sub_query_expr->generate_physical_oper();
+    }
+    return RC::SUCCESS;
+  };
+
   for (auto &expr : predicates) {
+    RC rc = expr->traverse_check(process_subquery);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
     if (expr->type() == ExprType::COMPARISON) {
       auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
       // 简单处理，就找等值查询
@@ -198,7 +212,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   } else {
     auto table_scan_oper = new TableScanPhysicalOperator(table, table_get_oper.read_write_mode());
     table_scan_oper->set_predicates(std::move(predicates));
-    oper = unique_ptr<PhysicalOperator>(table_scan_oper);
+    oper = std::unique_ptr<PhysicalOperator>(table_scan_oper);
     LOG_TRACE("use table scan");
   }
 
@@ -223,6 +237,17 @@ RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper, uniqu
   ASSERT(expressions.size() == 1, "predicate logical operator's children should be 1");
 
   unique_ptr<Expression> expression = std::move(expressions.front());
+  auto process_sub_query = [](Expression* expr) {
+    if (expr->type() == ExprType::SUBQUERY) {
+      SubQueryExpr* sub_query_expr = static_cast<SubQueryExpr*>(expr);
+      return sub_query_expr->generate_physical_oper();
+    }
+    return RC::SUCCESS;
+  };
+  rc = expression->traverse_check(process_sub_query);
+  if (RC::SUCCESS != rc) {
+    return rc;
+  }
   oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expression)));
   oper->add_child(std::move(child_phy_oper));
   return rc;
@@ -305,6 +330,19 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &logical_oper, std::
       return rc;
     }
   }
+
+  // for (auto& value : logical_oper.values()) {
+  //   rc = value->traverse_check([](Expression* expr) {
+  //     if (expr->type() == ExprType::SUBQUERY) {
+  //       SubQueryExpr* sub_query_expr = static_cast<SubQueryExpr*>(expr);
+  //       sub_query_expr->generate_physical_oper();
+  //     }
+  //     return RC::SUCCESS;
+  //   });
+  //   if (RC::SUCCESS != rc) {
+  //     return rc;
+  //   }
+  // }
 
   oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(logical_oper.table(), logical_oper.values(), logical_oper.fields()));
 

@@ -155,7 +155,7 @@ RC UpdatePhysicalOperator::construct_new_record(Record &old_record, Record &new_
     } else {
       new_null_bitmap.clear_bit(fields_id_[c_idx]);
       if (AttrType::CHARS == field_meta.type()) {
-      memcpy(tmp_record_data_ + field_meta.offset(), value->data(), value->length() + 1);
+      memcpy(tmp_record_data_ + field_meta.offset(), value->data(),value->length() == field_meta.len() ? value->length() : value->length() + 1);
       } else if (AttrType::TEXTS == field_meta.type()){
         int64_t position[2];
         position[1] = value->length();
