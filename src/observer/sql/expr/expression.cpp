@@ -124,7 +124,12 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
     }
     if(subquery_expr->is_single_value()){
       // 单值子查询，直接获取值,替换原来的子查询表达式
-      subquery_expr->get_value(tuple, value);
+      RC rc = subquery_expr->get_value(tuple, value);
+      if(rc != RC::SUCCESS){
+        LOG_WARN("subquery return no value");
+        return RC::INVALID_ARGUMENT;
+      }
+      
       subquery_expr->close();
       ValueExpr* value_expr = new ValueExpr(value);
       std::unique_ptr<ValueExpr> value_expr_ptr(value_expr);
@@ -142,7 +147,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
       if(subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
         if(exprList.size() != 1){
           LOG_WARN("subquery return more than one value or no value");
-          return RC::INTERNAL;
+          return RC::INVALID_ARGUMENT;
         }
       }
       if(exprList.size() == 1){
