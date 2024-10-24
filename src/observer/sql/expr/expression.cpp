@@ -122,7 +122,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
       subquery_expr->open(nullptr);
       subquery_expr->set_opened();
     }
-    if(subquery_expr->is_single_value()){
+    if(subquery_expr->is_single_value() && subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
       // 单值子查询，直接获取值,替换原来的子查询表达式
       RC rc = subquery_expr->get_value(tuple, value);
       if(rc != RC::SUCCESS){
@@ -149,9 +149,9 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
           LOG_WARN("subquery return more than one value or no value");
           return rc;
         }
-      }
-      if(exprList.size() == 1){
-        set_child(std::unique_ptr<Expression>(exprList[0]));
+        if(exprList.size() == 1){
+          set_child(std::unique_ptr<Expression>(exprList[0]));
+        }
       }else{
         ExprListExpr* expr_list_expr = new ExprListExpr(std::move(exprList));
         std::unique_ptr<ExprListExpr> expr_list_expr_ptr(expr_list_expr);
@@ -815,6 +815,11 @@ RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::stri
   if(ss->query_expressions()[0]->type() == ExprType::UNBOUND_AGGREGATION 
     || ss->query_expressions()[0]->type() == ExprType::AGGREGATION){
       is_single_value_ = true;
+  }
+  if(comp_ >= EQUAL_TO && comp_ <= GREAT_THAN){
+    if(!is_single_value_ && ss->filter_stmt() == nullptr){
+      return RC::INVALID_ARGUMENT;
+    }
   }
   stmt_ = std::unique_ptr<SelectStmt>(ss);
   return RC::SUCCESS;
