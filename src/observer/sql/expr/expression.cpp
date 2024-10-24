@@ -140,8 +140,8 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
       }
       subquery_expr->close();
       if(subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
-        if(exprList.size() > 1){
-          LOG_WARN("subquery return more than one value");
+        if(exprList.size() != 1){
+          LOG_WARN("subquery return more than one value or no value");
           return RC::INTERNAL;
         }
       }
