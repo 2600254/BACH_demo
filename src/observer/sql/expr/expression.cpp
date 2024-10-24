@@ -127,7 +127,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
       RC rc = subquery_expr->get_value(tuple, value);
       if(rc != RC::SUCCESS){
         LOG_WARN("subquery return no value");
-        return RC::INVALID_ARGUMENT;
+        return rc;
       }
       
       subquery_expr->close();
@@ -147,7 +147,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
       if(subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
         if(exprList.size() != 1){
           LOG_WARN("subquery return more than one value or no value");
-          return RC::INVALID_ARGUMENT;
+          return rc;
         }
       }
       if(exprList.size() == 1){
