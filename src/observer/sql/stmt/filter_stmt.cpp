@@ -51,19 +51,11 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
 
       unique_ptr<Expression> left = std::move(cmp_expr->left());
       unique_ptr<Expression> right = std::move(cmp_expr->right());
-
-      if(left->type() == ExprType::SUBQUERY){
-        SubQueryExpr* sqe = static_cast<SubQueryExpr*>(left.get());
-        sqe->set_comp(comp);
-      }
-      if(right->type() == ExprType::SUBQUERY){
-        SubQueryExpr* sqe = static_cast<SubQueryExpr*>(right.get());
-        sqe->set_comp(comp);
-      }
       if (left->value_type() != right->value_type()) {
         auto left_to_right_cost = implicit_cast_cost(left->value_type(), right->value_type());
         auto right_to_left_cost = implicit_cast_cost(right->value_type(), left->value_type());
-        if (left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) {
+        if (left->value_type() == AttrType::UNDEFINED 
+        ||(left_to_right_cost <= right_to_left_cost && left_to_right_cost != INT32_MAX) ) {
           ExprType left_type = left->type();
           auto cast_expr = make_unique<CastExpr>(std::move(left), right->value_type());
           if (left_type == ExprType::VALUE) {
@@ -78,7 +70,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
             left = std::move(cast_expr);
           }
         // } else if (right_to_left_cost < left_to_right_cost && right_to_left_cost != INT32_MAX) {
-        } else if (right_to_left_cost <= left_to_right_cost) {
+        } else if (right->value_type() == AttrType::UNDEFINED || right_to_left_cost <= left_to_right_cost) {
           ExprType right_type = right->type();
           auto cast_expr = make_unique<CastExpr>(std::move(right), left->value_type());
           if (right_type == ExprType::VALUE) {

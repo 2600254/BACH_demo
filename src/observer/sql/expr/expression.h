@@ -77,7 +77,7 @@ public:
   /**
    * @brief 根据具体的tuple，来计算当前表达式的值。tuple有可能是一个具体某个表的行数据
    */
-  virtual RC get_value(const Tuple &tuple, Value &value) const = 0;
+  virtual RC get_value(const Tuple &tuple, Value &value) = 0;
 
   /**
    * @brief 在没有实际运行的情况下，也就是无法获取tuple的情况下，尝试获取表达式的值
@@ -171,7 +171,7 @@ public:
   ExprType type() const override { return ExprType::STAR; }
   AttrType value_type() const override { return AttrType::UNDEFINED; }
 
-  RC get_value(const Tuple &tuple, Value &value) const override { return RC::UNIMPLEMENTED; }  // 不需要实现
+  RC get_value(const Tuple &tuple, Value &value) override { return RC::UNIMPLEMENTED; }  // 不需要实现
 
   const char *table_name() const { return table_name_.c_str(); }
 
@@ -225,7 +225,7 @@ public:
 
   RC get_column(Chunk &chunk, Column &column) override;
 
-  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC get_value(const Tuple &tuple, Value &value) override;
   
   std::unique_ptr<Expression> deep_copy() const override
   {
@@ -256,7 +256,7 @@ public:
 
   bool equal(const Expression &other) const override;
 
-  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC get_value(const Tuple &tuple, Value &value) override;
   RC get_column(Chunk &chunk, Column &column) override;
   RC try_get_value(Value &value) const override
   {
@@ -268,7 +268,7 @@ public:
   AttrType value_type() const override { return value_.attr_type(); }
   int      value_length() const override { return value_.length(); }
 
-  void         get_value(Value &value) const { value = value_; }
+  void         get_value(Value &value) { value = value_; }
   const Value &get_value() const { return value_; }
   
   std::unique_ptr<Expression> deep_copy() const override
@@ -286,7 +286,7 @@ public:
   NullExpr() = default;
   virtual ~NullExpr() = default;
 
-  RC get_value(const Tuple &tuple, Value &value) const {return RC::UNIMPLEMENTED;}
+  RC get_value(const Tuple &tuple, Value &value) {return RC::UNIMPLEMENTED;}
   RC get_column(Chunk &chunk, Column &column) {return RC::UNIMPLEMENTED;}
   RC try_get_value(Value &value) const {return RC::UNIMPLEMENTED;}
 
@@ -308,7 +308,7 @@ public:
   RC close();
   bool has_more_row(const Tuple &tuple) const;
 
-  RC get_value(const Tuple &tuple, Value &value) const;
+  RC get_value(const Tuple &tuple, Value &value);
 
   RC try_get_value(Value &value) const{return RC::UNIMPLEMENTED;}
 
@@ -322,6 +322,10 @@ public:
 
   bool has_opened() const{
     return is_open_;
+  }
+
+  bool is_single_value() const{
+    return is_single_value_;
   }
 
   void set_opened(){
@@ -340,6 +344,7 @@ private:
   std::unique_ptr<PhysicalOperator> physical_oper_;
   bool is_open_ = false;
   CompOp comp_;
+  bool is_single_value_;
 };
 
 /**
@@ -353,14 +358,18 @@ public:
   virtual ~CastExpr();
 
   ExprType type() const override { return ExprType::CAST; }
+  
+  void set_child(std::unique_ptr<Expression> child) { child_ = std::move(child); }
 
-  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC get_value(const Tuple &tuple, Value &value) override;
 
   RC try_get_value(Value &value) const override;
 
   AttrType value_type() const override { return cast_type_; }
 
   std::unique_ptr<Expression> &child() { return child_; }
+
+
   
   std::unique_ptr<Expression> deep_copy() const override
   {
@@ -407,7 +416,7 @@ public:
   virtual ~ComparisonExpr();
 
   ExprType type() const override { return ExprType::COMPARISON; }
-  RC       get_value(const Tuple &tuple, Value &value) const override;
+  RC       get_value(const Tuple &tuple, Value &value) override;
   AttrType value_type() const override { return AttrType::BOOLEANS; }
   CompOp   comp() const { return comp_; }
 
@@ -459,6 +468,14 @@ public:
   RC traverse_check(const std::function<RC(Expression*)>& check_func) override
   {
     RC rc = RC::SUCCESS;
+    if(left_->type() == ExprType::SUBQUERY){
+      SubQueryExpr* sqe = static_cast<SubQueryExpr*>(left_.get());
+      sqe->set_comp(comp_);
+    }
+    if(right_->type() == ExprType::SUBQUERY){
+      SubQueryExpr* sqe = static_cast<SubQueryExpr*>(right_.get());
+      sqe->set_comp(comp_);
+    }
     if (RC::SUCCESS != (rc = left_->traverse_check(check_func))) {
       return rc;
     } else if (RC::SUCCESS != (rc = right_->traverse_check(check_func))) {
@@ -504,7 +521,7 @@ public:
 
   ExprType type() const override { return ExprType::CONJUNCTION; }
   AttrType value_type() const override { return AttrType::BOOLEANS; }
-  RC       get_value(const Tuple &tuple, Value &value) const override;
+  RC       get_value(const Tuple &tuple, Value &value) override;
 
   Type conjunction_type() const { return conjunction_type_; }
 
@@ -583,7 +600,7 @@ public:
     return 4;  // sizeof(float) or sizeof(int)
   };
 
-  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC get_value(const Tuple &tuple, Value &value) override;
 
   RC get_column(Chunk &chunk, Column &column) override;
 
@@ -654,7 +671,7 @@ public:
 
   std::unique_ptr<Expression> &child() { return child_; }
 
-  RC       get_value(const Tuple &tuple, Value &value) const override { return RC::INTERNAL; }
+  RC       get_value(const Tuple &tuple, Value &value) override { return RC::INTERNAL; }
   AttrType value_type() const override { return child_->value_type(); }
 
   std::unique_ptr<Expression> deep_copy() const override
@@ -692,7 +709,7 @@ public:
   AttrType value_type() const override { return child_->value_type(); }
   int      value_length() const override { return child_->value_length(); }
 
-  RC get_value(const Tuple &tuple, Value &value) const override;
+  RC get_value(const Tuple &tuple, Value &value) override;
 
   RC get_column(Chunk &chunk, Column &column) override;
 
@@ -761,7 +778,7 @@ public:
     cur_idx_ = 0;
   }
   
-  RC get_value(const Tuple &tuple, Value &value) const override
+  RC get_value(const Tuple &tuple, Value &value) override
   {
     if (cur_idx_ >= static_cast<int>(exprs_.size())) {
       return RC::RECORD_EOF;

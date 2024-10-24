@@ -27,7 +27,7 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 
 
-RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
+RC FieldExpr::get_value(const Tuple &tuple, Value &value)
 {
   LOG_INFO("%s", tuple.to_string().c_str());
   const char* table_name_str = table_name();
@@ -84,7 +84,7 @@ bool ValueExpr::equal(const Expression &other) const
   return value_.compare(other_value_expr.get_value()) == 0;
 }
 
-RC ValueExpr::get_value(const Tuple &tuple, Value &value) const
+RC ValueExpr::get_value(const Tuple &tuple, Value &value)
 {
   value = value_;
   return RC::SUCCESS;
@@ -113,14 +113,42 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
   return rc;
 }
 
-RC CastExpr::get_value(const Tuple &tuple, Value &result) const
+RC CastExpr::get_value(const Tuple &tuple, Value &result)
 {
   Value value;
+  if(child_->type() == ExprType::SUBQUERY){
+    SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(child_.get());
+    if(!subquery_expr->has_opened()){
+      subquery_expr->open(nullptr);
+      subquery_expr->set_opened();
+    }
+    if(subquery_expr->is_single_value()){
+      // 单值子查询，直接获取值,替换原来的子查询表达式
+      subquery_expr->get_value(tuple, value);
+      subquery_expr->close();
+      ValueExpr* value_expr = new ValueExpr(value);
+      std::unique_ptr<ValueExpr> value_expr_ptr(value_expr);
+      set_child(std::move(value_expr_ptr));
+    }else{
+      // 多值子查询，获取值后转换为ExprListExpr，替换原来的子查询表达式
+      std::vector<Expression*> exprList;
+      RC rc = RC::SUCCESS;
+      Value subquery_value;
+      while (RC::SUCCESS == (rc = subquery_expr->get_value(tuple, subquery_value))) {
+        ValueExpr* value_expr = new ValueExpr(subquery_value);
+        exprList.push_back(value_expr);
+      }
+      subquery_expr->close();
+      ExprListExpr* expr_list_expr = new ExprListExpr(std::move(exprList));
+      std::unique_ptr<ExprListExpr> expr_list_expr_ptr(expr_list_expr);
+      set_child(std::move(expr_list_expr_ptr));
+    }
+    
+  }
   RC rc = child_->get_value(tuple, value);
   if (rc != RC::SUCCESS) {
     return rc;
   }
-
   return cast(value, result);
 }
 
@@ -232,54 +260,28 @@ RC ComparisonExpr::try_get_value(Value &cell) const
   return RC::INVALID_ARGUMENT;
 }
 
-RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
+RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
 {
   Value left_value;
   Value right_value;
 
-  SubQueryExpr* left_subquery_expr = nullptr;
-  SubQueryExpr* right_subquery_expr = nullptr;
-  if(left_->type() == ExprType::SUBQUERY){
-    left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
-    if(!left_subquery_expr->has_opened()){
-      left_subquery_expr->open(nullptr);
-      left_subquery_expr->set_opened();
-    }
-  }
-  if(right_->type() == ExprType::SUBQUERY){
-    right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
-    if(!right_subquery_expr->has_opened()){
-      right_subquery_expr->open(nullptr);
-      right_subquery_expr->set_opened();
-    }
-  }
-  if(left_->type() == ExprType::CAST){
-    CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
-    if(cast_expr->child()->type() == ExprType::SUBQUERY){
-      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
-      if(!subquery_expr->has_opened()){
-        subquery_expr->open(nullptr);
-        subquery_expr->set_opened();
-      }
-    }else if(cast_expr->child()->type() == ExprType::EXPRLIST){
-      ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
-      eler->reset();
-    }
-  }
-  if(right_->type() == ExprType::CAST){
-    CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
-    if(cast_expr->child()->type() == ExprType::SUBQUERY){
-      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
-      if(!subquery_expr->has_opened()){
-        subquery_expr->open(nullptr);
-        subquery_expr->set_opened();
-      }
-    }else if(cast_expr->child()->type() == ExprType::EXPRLIST){
-      ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
-      eler->reset();
-    }
-  }
-
+  // SubQueryExpr* left_subquery_expr = nullptr;
+  // SubQueryExpr* right_subquery_expr = nullptr;
+  // if(left_->type() == ExprType::SUBQUERY){
+  //   left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
+  //   if(!left_subquery_expr->has_opened()){
+  //     left_subquery_expr->open(nullptr);
+  //     left_subquery_expr->set_opened();
+  //   }
+  // }
+  // if(right_->type() == ExprType::SUBQUERY){
+  //   right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
+  //   if(!right_subquery_expr->has_opened()){
+  //     right_subquery_expr->open(nullptr);
+  //     right_subquery_expr->set_opened();
+  //   }
+  // }
+  
 
   bool bool_value = false;
   RC rc = RC::SUCCESS;
@@ -304,6 +306,21 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     if(right_->type() == ExprType::EXPRLIST){
       static_cast<ExprListExpr*>(right_.get())->reset();
     }
+
+    if(left_->type() == ExprType::CAST){
+      CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
+      if(cast_expr->child()->type() == ExprType::EXPRLIST){
+        ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+        eler->reset();
+      }
+    }
+    if(right_->type() == ExprType::CAST){
+      CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
+      if(cast_expr->child()->type() == ExprType::EXPRLIST){
+        ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+        eler->reset();
+      }
+    }
     bool res = false; // 有一样的值
     while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
       if(left_value.compare(right_value) == 0) {
@@ -327,30 +344,30 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     rc = compare_value(left_value, right_value, bool_value);
   }
   //关闭子查询物理计划
-  if(right_subquery_expr != nullptr){
-    right_subquery_expr->close();
-  }
-  if(left_subquery_expr != nullptr){
-    left_subquery_expr->close();
-  }
-  if(left_->type() == ExprType::CAST){
-    CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
-    if(cast_expr->child()->type() == ExprType::SUBQUERY){
-      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
-      if(subquery_expr->has_opened()){
-        subquery_expr->close();
-      }
-    }
-  }
-  if(right_->type() == ExprType::CAST){
-    CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
-    if(cast_expr->child()->type() == ExprType::SUBQUERY){
-      SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
-      if(subquery_expr->has_opened()){
-        subquery_expr->close();
-      }
-    }
-  }
+  // if(right_subquery_expr != nullptr){
+  //   right_subquery_expr->close();
+  // }
+  // if(left_subquery_expr != nullptr){
+  //   left_subquery_expr->close();
+  // }
+  // if(left_->type() == ExprType::CAST){
+  //   CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
+  //   if(cast_expr->child()->type() == ExprType::SUBQUERY){
+  //     SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
+  //     if(subquery_expr->has_opened()){
+  //       subquery_expr->close();
+  //     }
+  //   }
+  // }
+  // if(right_->type() == ExprType::CAST){
+  //   CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
+  //   if(cast_expr->child()->type() == ExprType::SUBQUERY){
+  //     SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(cast_expr->child().get());
+  //     if(subquery_expr->has_opened()){
+  //       subquery_expr->close();
+  //     }
+  //   }
+  // }
   if (rc == RC::SUCCESS) {
     value.set_boolean(bool_value);
   }
@@ -421,7 +438,7 @@ ConjunctionExpr::ConjunctionExpr(Type type, vector<unique_ptr<Expression>> &chil
     : conjunction_type_(type), children_(std::move(children))
 {}
 
-RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value) const
+RC ConjunctionExpr::get_value(const Tuple &tuple, Value &value)
 {
   RC rc = RC::SUCCESS;
   if (children_.empty()) {
@@ -587,7 +604,7 @@ RC ArithmeticExpr::execute_calc(
   return rc;
 }
 
-RC ArithmeticExpr::get_value(const Tuple &tuple, Value &value) const
+RC ArithmeticExpr::get_value(const Tuple &tuple, Value &value)
 {
   RC rc = RC::SUCCESS;
 
@@ -745,7 +762,7 @@ unique_ptr<Aggregator> AggregateExpr::create_aggregator() const
   return aggregator;
 }
 
-RC AggregateExpr::get_value(const Tuple &tuple, Value &value) const
+RC AggregateExpr::get_value(const Tuple &tuple, Value &value)
 {
   LOG_INFO("AggregateExpr::get_value is_first_");
   LOG_INFO("AggregateExpr::get_value table_name_:%d",index_);
@@ -786,6 +803,7 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
 SubQueryExpr::SubQueryExpr(const SelectSqlNode& sql_node) {
   sql_node_ = std::make_unique<SelectSqlNode>(sql_node);
   is_open_ = false;
+  is_single_value_ = false;
 }
 
 bool SubQueryExpr::has_more_row(const Tuple &tuple) const
@@ -793,7 +811,7 @@ bool SubQueryExpr::has_more_row(const Tuple &tuple) const
   return physical_oper_->next() != RC::RECORD_EOF;
 }
 
-RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const{
+RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
   physical_oper_->set_parent_tuple(&tuple);
   // 每次返回一行的第一个 cell
   RC rc = physical_oper_->next();
@@ -823,13 +841,16 @@ RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::stri
   if (ss->query_expressions().size() > 1) {
     return RC::INVALID_ARGUMENT;
   }
-  // if(comp_ >= EQUAL_TO && comp_ <= GREAT_EQUAL){
-  //   if(ss->query_expressions()[0]->type() != ExprType::UNBOUND_AGGREGATION 
-  //   && ss->query_expressions()[0]->type() != ExprType::AGGREGATION){
-  //     LOG_DEBUG("sub query is not aggregation function");
-  //     return RC::INVALID_ARGUMENT;
-  //   }
-  // }
+  //判断subquery中是否是聚合函数，如果是聚合函数那么subquery返回的结果是单值
+  if(ss->query_expressions()[0]->type() == ExprType::UNBOUND_AGGREGATION 
+    || ss->query_expressions()[0]->type() == ExprType::AGGREGATION){
+      is_single_value_ = true;
+  }
+  //判断subquery外是否是比较运算符，如果是比较运算符那么subquery返回的结果必须是单值，不是单值则报错
+  if(comp_ >= EQUAL_TO && comp_ <= GREAT_EQUAL && !is_single_value_){
+    LOG_DEBUG("sub query is not aggregation function");
+    return RC::INVALID_ARGUMENT;
+  }
   stmt_ = std::unique_ptr<SelectStmt>(ss);
   return RC::SUCCESS;
 }
