@@ -219,7 +219,13 @@ RC ExpressionBinder::bind_field_expression(
 RC ExpressionBinder::bind_value_expression(
     Expression* value_expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
-  bound_expressions.emplace_back(std::move(value_expr));
+  Value value;
+  RC rc = value_expr->try_get_value(value);
+  if(OB_FAIL(rc)){
+    return rc;
+  }
+  ValueExpr* new_value_expr = new ValueExpr(value);
+  bound_expressions.emplace_back(std::move(new_value_expr));
   return RC::SUCCESS;
 }
 
@@ -383,6 +389,30 @@ RC ExpressionBinder::bind_arithmetic_expression(
     right_expr.reset(right.release());
   }
 
+  if(left_expr->type() == ExprType::VALUE && right_expr->type() == ExprType::VALUE){
+    //如果表达式可以直接计算，则直接计算返回ValueExpr即可
+    Value left_value;
+    Value right_value;
+    if(RC::SUCCESS != left_expr->try_get_value(left_value)){
+      LOG_WARN("failed to get value from left child");
+      return RC::INTERNAL;
+    }
+    if(RC::SUCCESS != right_expr->try_get_value(right_value)){
+      LOG_WARN("failed to get value from right child");
+      return RC::INTERNAL;
+    }
+    Value result;
+    ArithmeticExpr* arithmetic_expr = static_cast<ArithmeticExpr *>(expr);
+    if(RC::SUCCESS != arithmetic_expr->calc_value(left_value, right_value, result)){
+      LOG_WARN("failed to calculate value");
+      return RC::INTERNAL;
+    }
+    ValueExpr* value_expr = new ValueExpr(result);
+    unique_ptr<Expression> value_expr_ptr(value_expr);
+    bound_expressions.emplace_back(std::move(value_expr_ptr));
+    return RC::SUCCESS;
+  }
+  // ArithmeticExpr* arithmetic_expr_new = new ArithmeticExpr(arithmetic_expr->arithmetic_type(), std::move(left_expr), std::move(right_expr));
   bound_expressions.emplace_back(std::move(expr));
   return RC::SUCCESS;
 }

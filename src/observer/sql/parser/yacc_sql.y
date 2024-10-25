@@ -220,11 +220,12 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
+%left OR
+%left AND
+%left EQ LT GT LE GE NE
 %left '+' '-'
 %left '*' '/'
 
-%left OR
-%left AND
 %nonassoc UMINUS
 %%
 
@@ -653,7 +654,12 @@ sub_query_expr:
     ;
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT expression_list FROM from_node from_list where group_by opt_order_by
+    SELECT expression_list {
+      $$ = new ParsedSqlNode(SCF_CALC);
+      $$->calc.expressions.swap(*$2);
+      delete $2;
+    }
+    | SELECT expression_list FROM from_node from_list where group_by opt_order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {

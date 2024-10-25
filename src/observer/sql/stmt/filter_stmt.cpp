@@ -29,6 +29,9 @@ int FilterStmt::implicit_cast_cost(AttrType from, AttrType to)
   if (from == AttrType::NULLS || to == AttrType::NULLS){
     return 0;
   }
+  if(from == AttrType::FLOATS && to == AttrType::INTS){
+    return INT32_MAX;
+  }
   return DataType::type_instance(from)->cast_cost(to);
 }
 
@@ -105,6 +108,9 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
     }else if(expr->type() == ExprType::NULLTYPE){
       return RC::SUCCESS;
     }else if(expr->type() == ExprType::VALUE){
+      return RC::SUCCESS;
+    }else if(expr->type() == ExprType::ARITHMETIC){
+      //如果是算术表达式，检查左右子表达式
       return RC::SUCCESS;
     }else if(expr->type() == ExprType::FIELD){
       //检查字段是否存在

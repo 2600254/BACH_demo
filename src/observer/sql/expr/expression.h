@@ -623,9 +623,10 @@ public:
     return new_expr;
   }
 
-private:
   RC calc_value(const Value &left_value, const Value &right_value, Value &value) const;
 
+private:
+  
   RC calc_column(const Column &left_column, const Column &right_column, Column &column) const;
 
   template <bool LEFT_CONSTANT, bool RIGHT_CONSTANT>
@@ -643,11 +644,20 @@ private:
   RC traverse_check(const std::function<RC(Expression*)>& check_func) override
   {
     RC rc = RC::SUCCESS;
+    if(arithmetic_type_ == Type::NEGATIVE){
+      //init:left = value, type = NEGATIVE, right = nullptr
+      //now: left = 0, type = SUB, right = value
+      arithmetic_type_ = Type::SUB;
+      right_ = std::move(left_);
+      left_ = std::make_unique<ValueExpr>(Value(0));
+    }
     if (RC::SUCCESS != (rc = left_->traverse_check(check_func))) {
       return rc;
-    } else if (RC::SUCCESS != (rc = right_->traverse_check(check_func))) {
+    }
+    if (RC::SUCCESS != (rc = right_->traverse_check(check_func))) {
       return rc;
-    } else if (RC::SUCCESS != (rc = check_func(this))) {
+    }
+    if (RC::SUCCESS != (rc = check_func(this))) {
       return rc;
     }
     return RC::SUCCESS;
