@@ -354,6 +354,14 @@ RC ExpressionBinder::bind_arithmetic_expression(
 
   auto arithmetic_expr = static_cast<ArithmeticExpr *>(expr);
 
+  if(arithmetic_expr->arithmetic_type() == ArithmeticExpr::Type::NEGATIVE){
+    //如果是负数，那么就是0 - value
+    RC rc = arithmetic_expr->neg_to_sub();
+      if(OB_FAIL(rc)) {
+        return rc;
+      }
+  }
+
   vector<unique_ptr<Expression>> child_bound_expressions;
   unique_ptr<Expression>        &left_expr  = arithmetic_expr->left();
   unique_ptr<Expression>        &right_expr = arithmetic_expr->right();
@@ -412,8 +420,9 @@ RC ExpressionBinder::bind_arithmetic_expression(
     bound_expressions.emplace_back(std::move(value_expr_ptr));
     return RC::SUCCESS;
   }
-  // ArithmeticExpr* arithmetic_expr_new = new ArithmeticExpr(arithmetic_expr->arithmetic_type(), std::move(left_expr), std::move(right_expr));
-  bound_expressions.emplace_back(std::move(expr));
+  ArithmeticExpr* arithmetic_expr_new = new ArithmeticExpr(arithmetic_expr->arithmetic_type(), std::move(left_expr), std::move(right_expr));
+  arithmetic_expr_new->set_name(arithmetic_expr->name());
+  bound_expressions.emplace_back(std::move(arithmetic_expr_new));
   return RC::SUCCESS;
 }
 

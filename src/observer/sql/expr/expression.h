@@ -606,6 +606,15 @@ public:
 
   RC try_get_value(Value &value) const override;
 
+  RC neg_to_sub(){
+    if(arithmetic_type_ == Type::NEGATIVE){
+      arithmetic_type_ = Type::SUB;
+      right_ = std::move(left_);
+      left_ = std::make_unique<ValueExpr>(Value(0));
+    }
+    return RC::SUCCESS;
+  }
+
   Type arithmetic_type() const { return arithmetic_type_; }
 
   std::unique_ptr<Expression> &left() { return left_; }
@@ -645,11 +654,10 @@ private:
   {
     RC rc = RC::SUCCESS;
     if(arithmetic_type_ == Type::NEGATIVE){
-      //init:left = value, type = NEGATIVE, right = nullptr
-      //now: left = 0, type = SUB, right = value
-      arithmetic_type_ = Type::SUB;
-      right_ = std::move(left_);
-      left_ = std::make_unique<ValueExpr>(Value(0));
+      rc = neg_to_sub();
+      if(OB_FAIL(rc)) {
+        return rc;
+      }
     }
     if (RC::SUCCESS != (rc = left_->traverse_check(check_func))) {
       return rc;
