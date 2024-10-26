@@ -15,6 +15,8 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <vector>
+#include <unordered_map>
+#include <string>
 
 #include "sql/expr/expression.h"
 
@@ -28,10 +30,16 @@ public:
 
   Table *find_table(const char *table_name) const;
 
+  void set_table_alias_src(const std::string &table_alias, const std::string &table_src)
+  {
+    table_alias_src_map_[table_alias] = table_src;
+  }
+
   const std::vector<Table *> &query_tables() const { return query_tables_; }
 
 private:
   std::vector<Table *> query_tables_;
+  std::unordered_map<std::string, std::string> table_alias_src_map_;
 };
 
 /**

@@ -48,34 +48,41 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
   // collect tables in `from` statement
   vector<Table *>                tables;
   unordered_map<string, Table *> table_map;
-  unordered_map<string, Table *> local_table_map;
+  unordered_map<string, string> table_alias_src_map;
   vector<JoinTables> join_tables;
 
+  //建立查询中涉及到的表的信息
   for (auto &relation : select_sql.relations) {
-    if(table_map.find(relation.base_relation) == table_map.end()){
-      Table *table = db->find_table(relation.base_relation.c_str());
+    if(table_map.find(relation.base_relation.first) == table_map.end()){
+      Table *table = db->find_table(relation.base_relation.first.c_str());
       if (nullptr == table) {
-        LOG_WARN("no such table: %s", relation.base_relation.c_str());
+        LOG_WARN("no such table: %s", relation.base_relation.first.c_str());
         return RC::SCHEMA_TABLE_NOT_EXIST;
       }
       tables.push_back(table);
+      table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
+      binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
       binder_context.add_table(table);
-      table_map[relation.base_relation] = table;
+      table_map[relation.base_relation.first] = table;
     }
     
-    const std::vector<std::string>& join_relations = relation.join_relations;
+    const std::vector<pair<string, string>>& join_relations = relation.join_relations;
     for (size_t j = 0; j < join_relations.size(); ++j) {
-      if(table_map.find(join_relations[j]) != table_map.end()){
+      if(table_map.find(join_relations[j].first) != table_map.end()){
         continue;
       }
-      Table *table = db->find_table(join_relations[j].c_str());
+      Table *table = db->find_table(join_relations[j].first.c_str());
       if (nullptr == table) {
-        LOG_WARN("no such table: %s", join_relations[j].c_str());
+        LOG_WARN("no such table: %s", join_relations[j].first.c_str());
         return RC::SCHEMA_TABLE_NOT_EXIST;
       }
       tables.push_back(table);
+      
+      table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
+      binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
+    
       binder_context.add_table(table);
-      table_map[join_relations[j]] = table;
+      table_map[join_relations[j].first] = table;
     }
   }
 
@@ -83,23 +90,21 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   for (size_t i = 0; i < select_sql.relations.size(); ++i) {
     const InnerJoinSqlNode& relations = select_sql.relations[i];
-    local_table_map.clear();
-
     // construct JoinTables
     JoinTables jt;
-
     // base relation
-    jt.push_join_table(table_map[relations.base_relation], nullptr);
+    jt.push_join_table(table_map[relations.base_relation.first], nullptr);
 
-    const std::vector<std::string>& join_relations = relations.join_relations;
+    const std::vector<pair<string, string>>& join_relations = relations.join_relations;
     for (size_t j = 0; j < join_relations.size(); ++j) {
       FilterStmt* filter_stmt = nullptr;
-      RC rc = FilterStmt::create(db, table_map[join_relations[j]], &table_map, relations.conditions[j], filter_stmt);
+      RC rc = FilterStmt::create(db, table_map[join_relations[j].first], &table_map, 
+      relations.conditions[j], filter_stmt, table_alias_src_map);
       if (rc != RC::SUCCESS) {
         LOG_WARN("cannot construct filter stmt");
         return rc;
       }
-      jt.push_join_table(table_map[join_relations[j]], filter_stmt);
+      jt.push_join_table(table_map[join_relations[j].first], filter_stmt);
     }
     // push jt to join_tables
     join_tables.emplace_back(std::move(jt));
@@ -138,7 +143,8 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       default_table,
       &table_map,
       select_sql.conditions,
-      filter_stmt);
+      filter_stmt,
+      table_alias_src_map);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;

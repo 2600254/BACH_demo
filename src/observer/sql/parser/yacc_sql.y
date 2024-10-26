@@ -87,6 +87,7 @@ bool exp2value(Expression *exp, Value &value){
 //标识tokens
 %token  SEMICOLON
         BY
+        AS
         CREATE
         DROP
         GROUP
@@ -188,6 +189,7 @@ bool exp2value(Expression *exp, Value &value){
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
+%type <string>              alias
 %type <inner_joins>         join_list
 %type <inner_joins>         from_node
 %type <inner_joins_list>    from_list
@@ -649,17 +651,28 @@ from_list:
     }
     ;
 
+alias:
+    AS ID {
+      $$ = $2;
+    }
+    | /* empty */ {
+      $$ = nullptr;
+    }
+    ;
+
 from_node:
-    ID join_list {
-      if (nullptr != $2) {
-        $$ = $2;
+    ID alias join_list {
+      if (nullptr != $3) {
+        $$ = $3;
       } else {
         $$ = new InnerJoinSqlNode;
       }
-      $$->base_relation = $1;
+      $$->base_relation.first = $1;
+      $$->base_relation.second = nullptr == $2 ? "" : std::string($2);
       std::reverse($$->join_relations.begin(), $$->join_relations.end());
       std::reverse($$->conditions.begin(), $$->conditions.end());
       free($1);
+      free($2);
     }
     ;
 
@@ -667,14 +680,16 @@ join_list:
     /* empty */ {
       $$ = nullptr;
     }
-    | INNER JOIN ID ON condition join_list {
-      if (nullptr != $6) {
-        $$ = $6;
+    | INNER JOIN ID alias ON condition join_list {
+      if (nullptr != $7) {
+        $$ = $7;
       } else {
         $$ = new InnerJoinSqlNode;
       }
-      $$->join_relations.emplace_back($3);
-      $$->conditions.emplace_back($5);
+      std::string alias_name = $4 == nullptr ? "" : $4;
+      $$->join_relations.emplace_back($3, alias_name);
+      free($4);
+      $$->conditions.emplace_back($6);
       free($3);
     }
     ;
@@ -736,17 +751,25 @@ calc_stmt:
     ;
 
 expression_list:
-    expression
+    expression alias
     {
       $$ = new std::vector<Expression*>;
+      if($2 != nullptr){
+        $1->set_alias($2);
+        free($2);
+      }
       $$->emplace_back($1);
     }
-    | expression COMMA expression_list
+    | expression alias COMMA expression_list
     {
-      if ($3 != nullptr) {
-        $$ = $3;
+      if ($4 != nullptr) {
+        $$ = $4;
       } else {
         $$ = new std::vector<Expression*>;
+      }
+      if($2 != nullptr){
+        $1->set_alias($2);
+        free($2);
       }
       $$->emplace($$->begin(), $1);
     }

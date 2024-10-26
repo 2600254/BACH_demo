@@ -54,7 +54,6 @@ RC ExecuteStage::handle_request(SQLStageEvent *sql_event)
 RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
 {
   RC rc = RC::SUCCESS;
-
   unique_ptr<PhysicalOperator> &physical_operator = sql_event->physical_operator();
   ASSERT(physical_operator != nullptr, "physical operator should not be null");
 

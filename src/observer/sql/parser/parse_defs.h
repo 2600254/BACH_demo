@@ -82,8 +82,8 @@ enum CompOp
  */
 struct InnerJoinSqlNode
 {
-  std::string base_relation;
-  std::vector<std::string> join_relations;
+  std::pair<std::string, std::string> base_relation; // 带别名， first为原名 second为别名
+  std::vector<std::pair<std::string, std::string>> join_relations; //同上
   std::vector<Expression*> conditions;
 };
 

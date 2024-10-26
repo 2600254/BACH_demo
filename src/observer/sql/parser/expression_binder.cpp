@@ -27,7 +27,16 @@ Table *BinderContext::find_table(const char *table_name) const
   auto pred = [table_name](Table *table) { return 0 == strcasecmp(table_name, table->name()); };
   auto iter = ranges::find_if(query_tables_, pred);
   if (iter == query_tables_.end()) {
-    return nullptr;
+    //原名没找到，尝试别名
+    auto origin = table_alias_src_map_.find(table_name);
+    if (origin == table_alias_src_map_.end()) {
+      return nullptr;
+    }
+    std::string origin_table_name = origin->second;
+    iter = ranges::find_if(query_tables_, [origin_table_name](Table *table) { return 0 == strcasecmp(origin_table_name.c_str(), table->name()); });
+    if(iter == query_tables_.end()){
+      return nullptr;
+    }
   }
   return *iter;
 }
@@ -212,6 +221,7 @@ RC ExpressionBinder::bind_field_expression(
   Field      field(table, table_meta.field(fep->field_name()));
   FieldExpr* new_field_expr = new FieldExpr(field);
   new_field_expr->set_name(fep->field_name());
+  new_field_expr->set_alias(fep->alias());
   bound_expressions.emplace_back(std::move(new_field_expr));
   return RC::SUCCESS;
 }
@@ -417,11 +427,14 @@ RC ExpressionBinder::bind_arithmetic_expression(
     }
     ValueExpr* value_expr = new ValueExpr(result);
     unique_ptr<Expression> value_expr_ptr(value_expr);
+    value_expr_ptr->set_name(arithmetic_expr->name());
+    value_expr_ptr->set_alias(arithmetic_expr->alias());
     bound_expressions.emplace_back(std::move(value_expr_ptr));
     return RC::SUCCESS;
   }
   ArithmeticExpr* arithmetic_expr_new = new ArithmeticExpr(arithmetic_expr->arithmetic_type(), std::move(left_expr), std::move(right_expr));
   arithmetic_expr_new->set_name(arithmetic_expr->name());
+  arithmetic_expr_new->set_alias(arithmetic_expr->alias());
   bound_expressions.emplace_back(std::move(arithmetic_expr_new));
   return RC::SUCCESS;
 }
@@ -510,6 +523,7 @@ RC ExpressionBinder::bind_aggregate_expression(
 
   AggregateExpr* aggregate_expr = new AggregateExpr(aggregate_type, std::move(child_expr));
   aggregate_expr->set_name(unbound_aggregate_expr->name());
+  aggregate_expr->set_alias(unbound_aggregate_expr->alias());
   rc = check_aggregate_expression(*aggregate_expr);
   if (OB_FAIL(rc)) {
     return rc;
@@ -534,6 +548,8 @@ RC ExpressionBinder::bind_expression_list_expression(
     }
   }
   ExprListExpr* expr_list_expr_new = new ExprListExpr(std::move(list_bound_expressions));
+  expr_list_expr_new->set_name(expr_list->name());
+  expr_list_expr_new->set_alias(expr_list->alias());
   bound_expressions.emplace_back(std::move(expr_list_expr_new));
   return RC::SUCCESS;
 }

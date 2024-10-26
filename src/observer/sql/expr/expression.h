@@ -113,6 +113,9 @@ public:
   virtual const char *name() const { return name_.c_str(); }
   virtual void        set_name(std::string name) { name_ = name; }
 
+  virtual const char *alias() const { return alias_.c_str(); }
+  virtual void set_alias(std::string alias) { alias_ = alias; }
+
   virtual RC traverse_check(const std::function<RC(Expression*)>& check_func)
   {
     return check_func(this);
@@ -138,8 +141,6 @@ public:
   virtual int  pos() const { return pos_; }
   virtual void set_pos(int pos) { pos_ = pos; }
 
-  virtual std::string alias() const { return alias_; }
-  virtual void set_alias(std::string alias) { alias_ = alias; }
   /**
    * @brief 用于 ComparisonExpr 获得比较结果 `select`。
    */

@@ -126,6 +126,7 @@ ASC                                     RETURN_TOKEN(ASC);
 ORDER                                   RETURN_TOKEN(ORDER);
 GROUP                                   RETURN_TOKEN(GROUP);
 BY                                      RETURN_TOKEN(BY);
+AS                                      RETURN_TOKEN(AS);
 STORAGE                                 RETURN_TOKEN(STORAGE);
 FORMAT                                  RETURN_TOKEN(FORMAT);
 NOT                                     RETURN_TOKEN(NOT);

@@ -36,7 +36,7 @@ int FilterStmt::implicit_cast_cost(AttrType from, AttrType to)
 }
 
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      Expression *condition, FilterStmt *&stmt)
+      Expression *condition, FilterStmt *&stmt,std::unordered_map<std::string, std::string> &table_alias_map)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -45,7 +45,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
     return rc;
   }
 
-  auto check_condition_expr = [&db, &default_table, &tables](Expression *expr) {
+  auto check_condition_expr = [&db, &default_table, &tables, &table_alias_map](Expression *expr) {
     if (expr->type() == ExprType::COMPARISON) {
       ComparisonExpr* cmp_expr = static_cast<ComparisonExpr*>(expr);
       CompOp comp = cmp_expr->comp();
@@ -120,6 +120,10 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
       if(table_name == nullptr){
         LOG_WARN("no table name");
         return RC::SCHEMA_TABLE_NOT_EXIST;
+      }
+      if(table_alias_map.find(table_name) != table_alias_map.end()){
+        //如果表名是别名，替换为真实表名
+        table_name = table_alias_map[table_name].c_str();
       }
       field_expr->set_table_name(table_name);
       const char* field_name = field_expr->field_name();

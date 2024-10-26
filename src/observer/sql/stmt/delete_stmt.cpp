@@ -47,7 +47,8 @@ RC DeleteStmt::create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt)
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
 
   FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::create(db, table, &table_map, delete_sql.conditions, filter_stmt);
+  unordered_map<string, string> table_alias_map;
+  RC rc = FilterStmt::create(db, table, &table_map, delete_sql.conditions, filter_stmt, table_alias_map);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
     return rc;

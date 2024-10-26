@@ -84,7 +84,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
 
 
   FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::create(db, table, &table_map, update_sql.conditions, filter_stmt);
+  unordered_map<string, string> table_alias_src_map;
+  RC          rc          = FilterStmt::create(db, table, &table_map, update_sql.conditions, filter_stmt, table_alias_src_map);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
     return rc;
