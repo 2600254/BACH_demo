@@ -52,6 +52,26 @@ UnboundAggregateExpr *create_aggregate_expression(const char *aggregate_name,
   return expr;
 }
 
+bool exp2value(Expression *exp, Value &value){
+  if(exp->type() == ExprType::VALUE) {
+    ValueExpr *tmp = static_cast<ValueExpr*>(exp);
+    value = tmp->get_value();
+    return true;
+  }
+  if(exp->type() == ExprType::ARITHMETIC) {
+    ArithmeticExpr * tmp = static_cast<ArithmeticExpr *>(exp);
+    if(tmp->arithmetic_type() != ArithmeticExpr::Type::NEGATIVE && tmp->left()->type() != ExprType::VALUE) {
+      return false;
+    }
+    RC rc = tmp->try_get_value(value);
+    if(rc != RC::SUCCESS) {
+      return false;
+    }
+    return true;
+  }
+  return false;
+}
+
 %}
 
 %define api.pure full
@@ -489,6 +509,20 @@ value_list:
         $$ = new std::vector<Value>;
       }
       $$->emplace_back(*$2);
+      delete $2;
+    }
+    | COMMA expression value_list  { 
+      Value tmp;
+      if(!exp2value($2, tmp)) {
+        yyerror(&@$, sql_string, sql_result, scanner, "error");
+        YYERROR;
+      }
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<Value>;
+      }
+      $$->emplace_back(tmp);
       delete $2;
     }
     ;

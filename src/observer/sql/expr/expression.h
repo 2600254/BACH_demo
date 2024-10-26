@@ -288,7 +288,11 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) {return RC::UNIMPLEMENTED;}
   RC get_column(Chunk &chunk, Column &column) {return RC::UNIMPLEMENTED;}
-  RC try_get_value(Value &value) const {return RC::UNIMPLEMENTED;}
+  RC try_get_value(Value &value) const {
+    value = Value();
+    value.set_null();
+    return RC::SUCCESS;
+  }
 
   ExprType type() const override { return ExprType::NULLTYPE; }
   AttrType value_type() const override { return AttrType::UNDEFINED; }

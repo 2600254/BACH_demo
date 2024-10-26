@@ -30,16 +30,28 @@ int FloatType::compare(const Value &left, const Value &right) const
 
 RC FloatType::add(const Value &left, const Value &right, Value &result) const
 {
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result.set_float(left.get_float() + right.get_float());
   return RC::SUCCESS;
 }
 RC FloatType::subtract(const Value &left, const Value &right, Value &result) const
 {
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result.set_float(left.get_float() - right.get_float());
   return RC::SUCCESS;
 }
 RC FloatType::multiply(const Value &left, const Value &right, Value &result) const
 {
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result.set_float(left.get_float() * right.get_float());
   return RC::SUCCESS;
 }
@@ -52,7 +64,7 @@ RC FloatType::divide(const Value &left, const Value &right, Value &result) const
     result.set_null();
     // result.set_float(numeric_limits<float>::max());
   } else {
-    if(right.get_float() == 0){
+    if(right.get_float() == 0 || left.is_null() || right.is_null()){
       result.set_null();
     }else{
       result.set_float(left.get_float() / right.get_float());

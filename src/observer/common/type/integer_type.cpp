@@ -31,18 +31,30 @@ int IntegerType::compare(const Value &left, const Value &right) const
 
 RC IntegerType::add(const Value &left, const Value &right, Value &result) const
 {
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result.set_int(left.get_int() + right.get_int());
   return RC::SUCCESS;
 }
 
 RC IntegerType::subtract(const Value &left, const Value &right, Value &result) const
 {
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result.set_int(left.get_int() - right.get_int());
   return RC::SUCCESS;
 }
 
 RC IntegerType::multiply(const Value &left, const Value &right, Value &result) const
 {
+  if (left.is_null() || right.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result.set_int(left.get_int() * right.get_int());
   return RC::SUCCESS;
 }
