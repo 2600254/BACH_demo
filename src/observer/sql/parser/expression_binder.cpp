@@ -160,6 +160,7 @@ RC ExpressionBinder::bind_star_expression(Expression* expr, vector<unique_ptr<Ex
 
   const char *table_name = star_expr->table_name();
   if (!is_blank(table_name) && 0 != strcmp(table_name, "*")) {
+    //如果有具体表名，只对该表进行通配
     Table *table = context_.find_table(table_name);
     if (nullptr == table) {
       LOG_INFO("no such table in from list: %s", table_name);

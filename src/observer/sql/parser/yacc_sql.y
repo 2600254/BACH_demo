@@ -810,6 +810,13 @@ expression:
       $$ = new StarExpr();
     }
     // your code here
+    | ID DOT '*'{
+      $$ = new StarExpr($1);
+    }
+    | '*' DOT '*'{
+      const char* tmp = "*";
+      $$ = new StarExpr(tmp);
+    }
     | sub_query_expr {
       $$ = $1;
     }
