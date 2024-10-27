@@ -824,7 +824,7 @@ RC SubQueryExpr::close() {
 
 RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables){
   Stmt * select_stmt = nullptr;
-  RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt); 
+  RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt, tables); 
   if (OB_FAIL(rc)) {
     return rc;
   }

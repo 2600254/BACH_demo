@@ -39,7 +39,7 @@ public:
 
 public:
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      Expression *condition, FilterStmt *&stmt, std::unordered_map<std::string, std::string> &table_alias_map);
+      Expression *condition, FilterStmt *&stmt);
   static int implicit_cast_cost(AttrType from, AttrType to);
 private:
   std::unique_ptr<Expression> condition_expr_; ///< 过滤条件

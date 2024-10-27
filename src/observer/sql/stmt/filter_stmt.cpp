@@ -36,7 +36,7 @@ int FilterStmt::implicit_cast_cost(AttrType from, AttrType to)
 }
 
 RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      Expression *condition, FilterStmt *&stmt,std::unordered_map<std::string, std::string> &table_alias_map)
+      Expression *condition, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt  = nullptr;
@@ -45,7 +45,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
     return rc;
   }
 
-  auto check_condition_expr = [&db, &default_table, &tables, &table_alias_map](Expression *expr) {
+  auto check_condition_expr = [&db, &default_table, &tables](Expression *expr) {
     if (expr->type() == ExprType::COMPARISON) {
       ComparisonExpr* cmp_expr = static_cast<ComparisonExpr*>(expr);
       CompOp comp = cmp_expr->comp();
@@ -121,21 +121,19 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
         LOG_WARN("no table name");
         return RC::SCHEMA_TABLE_NOT_EXIST;
       }
-      if(table_alias_map.find(table_name) != table_alias_map.end()){
-        //如果表名是别名，替换为真实表名
-        table_name = table_alias_map[table_name].c_str();
-      }
-      field_expr->set_table_name(table_name);
+      
       const char* field_name = field_expr->field_name();
       if(field_name == nullptr){
         LOG_WARN("no field name");
         return RC::SCHEMA_FIELD_NOT_EXIST;
       }
-      Table* table = db->find_table(table_name);
+      Table* table = tables->find(table_name)->second;
       if(table == nullptr){
         LOG_WARN("no such table");
         return RC::SCHEMA_TABLE_NOT_EXIST;
       }
+      field_expr->set_table_name(table->name()); //将别名或原名均替换为原名
+      
       const FieldMeta* field = table->table_meta().field(field_name);
       if(field == nullptr){
         LOG_WARN("no such field in table");

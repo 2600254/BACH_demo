@@ -24,21 +24,11 @@ using namespace common;
 
 Table *BinderContext::find_table(const char *table_name) const
 {
-  auto pred = [table_name](Table *table) { return 0 == strcasecmp(table_name, table->name()); };
-  auto iter = ranges::find_if(query_tables_, pred);
-  if (iter == query_tables_.end()) {
-    //原名没找到，尝试别名
-    auto origin = table_alias_src_map_.find(table_name);
-    if (origin == table_alias_src_map_.end()) {
-      return nullptr;
-    }
-    std::string origin_table_name = origin->second;
-    iter = ranges::find_if(query_tables_, [origin_table_name](Table *table) { return 0 == strcasecmp(origin_table_name.c_str(), table->name()); });
-    if(iter == query_tables_.end()){
-      return nullptr;
-    }
+  auto table = table_map_.find(table_name);
+  if (table == table_map_.end()) {
+    return nullptr;
   }
-  return *iter;
+  return table->second;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

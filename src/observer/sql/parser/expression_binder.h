@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <unordered_set>
 
 #include "sql/expr/expression.h"
 
@@ -26,20 +27,24 @@ public:
   BinderContext()          = default;
   virtual ~BinderContext() = default;
 
-  void add_table(Table *table) { query_tables_.push_back(table); }
+  void add_table(std::string table_name, Table *table) {
+    table_map_[table_name] = table; 
+    if(table_set_.find(table) == table_set_.end()){
+      table_set_.insert(table);
+      query_tables_.push_back(table);
+    }
+  }
 
   Table *find_table(const char *table_name) const;
 
-  void set_table_alias_src(const std::string &table_alias, const std::string &table_src)
-  {
-    table_alias_src_map_[table_alias] = table_src;
+  const std::vector<Table *> &query_tables() const {
+     return query_tables_; 
   }
 
-  const std::vector<Table *> &query_tables() const { return query_tables_; }
-
 private:
-  std::vector<Table *> query_tables_;
-  std::unordered_map<std::string, std::string> table_alias_src_map_;
+  std::vector<Table *> query_tables_;   // 用于存放查询中涉及到的表
+  std::unordered_map<std::string, Table *> table_map_; // 表原名和别名对表的映射
+  std::unordered_set<Table *> table_set_; // 用于去重
 };
 
 /**

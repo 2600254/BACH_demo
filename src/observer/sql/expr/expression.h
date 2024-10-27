@@ -113,7 +113,7 @@ public:
   virtual const char *name() const { return name_.c_str(); }
   virtual void        set_name(std::string name) { name_ = name; }
 
-  virtual const char *alias() const { return alias_.c_str(); }
+  virtual std::string alias() const { return alias_; }
   virtual void set_alias(std::string alias) { alias_ = alias; }
 
   virtual RC traverse_check(const std::function<RC(Expression*)>& check_func)

@@ -63,7 +63,7 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt);
+  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, Table *> &parent_table_map = {});
 
 public:
   const std::vector<JoinTables> &join_tables() const

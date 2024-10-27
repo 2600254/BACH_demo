@@ -36,7 +36,8 @@ SelectStmt::~SelectStmt()
   }
 }
 
-RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
+RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, 
+  const std::unordered_map<std::string, Table *> &parent_table_map)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -45,10 +46,14 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
 
   BinderContext binder_context;
 
+  // add parent table to binder context, 包含了表的原名和别名的映射
+  for(auto &parent_table : parent_table_map){
+    binder_context.add_table(parent_table.first, parent_table.second);
+  }
+
   // collect tables in `from` statement
   vector<Table *>                tables;
-  unordered_map<string, Table *> table_map;
-  unordered_map<string, string> table_alias_src_map;
+  unordered_map<string, Table *> table_map = parent_table_map;
   vector<JoinTables> join_tables;
 
   //建立查询中涉及到的表的信息
@@ -60,10 +65,15 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
         return RC::SCHEMA_TABLE_NOT_EXIST;
       }
       tables.push_back(table);
-      table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
-      binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
-      binder_context.add_table(table);
+      // table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
+      // binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
+      binder_context.add_table(relation.base_relation.first, table);
       table_map[relation.base_relation.first] = table;
+      if(relation.base_relation.second.size() > 0){
+        //如果有别名，也放入map中
+        table_map[relation.base_relation.second] = table;
+        binder_context.add_table(relation.base_relation.second, table);
+      }
     }
     
     const std::vector<pair<string, string>>& join_relations = relation.join_relations;
@@ -78,11 +88,16 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       }
       tables.push_back(table);
       
-      table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
-      binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
+      // table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
+      // binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
     
-      binder_context.add_table(table);
+      binder_context.add_table(join_relations[j].first, table);
       table_map[join_relations[j].first] = table;
+      if(join_relations[j].second.size() > 0){
+        //如果有别名，也放入map中
+        binder_context.add_table(join_relations[j].second, table);
+        table_map[join_relations[j].second] = table; // 别名也当正常表放入
+      }
     }
   }
 
@@ -99,7 +114,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
     for (size_t j = 0; j < join_relations.size(); ++j) {
       FilterStmt* filter_stmt = nullptr;
       RC rc = FilterStmt::create(db, table_map[join_relations[j].first], &table_map, 
-      relations.conditions[j], filter_stmt, table_alias_src_map);
+      relations.conditions[j], filter_stmt);
       if (rc != RC::SUCCESS) {
         LOG_WARN("cannot construct filter stmt");
         return rc;
@@ -143,8 +158,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt)
       default_table,
       &table_map,
       select_sql.conditions,
-      filter_stmt,
-      table_alias_src_map);
+      filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
