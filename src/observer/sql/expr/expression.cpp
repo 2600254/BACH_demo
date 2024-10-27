@@ -124,42 +124,6 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
       subquery_expr->open(nullptr);
       subquery_expr->set_opened();
     }
-    if(subquery_expr->is_single_value() && subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
-      // 单值子查询，直接获取值,替换原来的子查询表达式
-      RC rc = subquery_expr->get_value(tuple, value);
-      if(rc != RC::SUCCESS){
-        LOG_WARN("subquery return no value");
-        return rc;
-      }
-      
-      subquery_expr->close();
-      ValueExpr* value_expr = new ValueExpr(value);
-      std::unique_ptr<ValueExpr> value_expr_ptr(value_expr);
-      set_child(std::move(value_expr_ptr));
-    }else{
-      // 多值子查询，获取值后转换为ExprListExpr，替换原来的子查询表达式
-      std::vector<Expression*> exprList;
-      RC rc = RC::SUCCESS;
-      Value subquery_value;
-      while (RC::SUCCESS == (rc = subquery_expr->get_value(tuple, subquery_value))) {
-        ValueExpr* value_expr = new ValueExpr(subquery_value);
-        exprList.push_back(value_expr);
-      }
-      subquery_expr->close();
-      if(subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN){
-        if(exprList.size() != 1){
-          LOG_WARN("subquery return more than one value or no value");
-          return rc;
-        }
-        if(exprList.size() == 1){
-          set_child(std::unique_ptr<Expression>(exprList[0]));
-        }
-      }else{
-        ExprListExpr* expr_list_expr = new ExprListExpr(std::move(exprList));
-        std::unique_ptr<ExprListExpr> expr_list_expr_ptr(expr_list_expr);
-        set_child(std::move(expr_list_expr_ptr));
-      }
-    }
   }
   RC rc = child_->get_value(tuple, value);
   if (rc != RC::SUCCESS) {
@@ -810,6 +774,8 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
   // 每次返回一行的第一个 cell
   RC rc = physical_oper_->next();
   if (RC::SUCCESS != rc) {
+    physical_oper_->close();
+    is_open_ = false;
     return rc;
   }
   return physical_oper_->current_tuple()->cell_at(0, value);

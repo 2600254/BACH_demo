@@ -652,7 +652,10 @@ from_list:
     ;
 
 alias:
-    AS ID {
+    ID {
+      $$ = $1;
+    }
+    | AS ID {
       $$ = $2;
     }
     | /* empty */ {

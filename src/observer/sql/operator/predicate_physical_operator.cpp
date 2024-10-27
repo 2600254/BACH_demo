@@ -37,13 +37,23 @@ RC PredicatePhysicalOperator::next()
 {
   RC                rc   = RC::SUCCESS;
   PhysicalOperator *oper = children_.front().get();
-
+  JoinedTuple jt;
+  Tuple *tuple;
   while (RC::SUCCESS == (rc = oper->next())) {
-    Tuple *tuple = oper->current_tuple();
-    if (nullptr == tuple) {
+    Tuple *current_tuple = oper->current_tuple();
+    if (nullptr == current_tuple) {
       rc = RC::INTERNAL;
       LOG_WARN("failed to get tuple from operator");
       break;
+    }
+    //将当前tuple和父tuple组成一个新的tuple 共同参与表达式的计算，解决相关子查询问题
+    //select * from table_alias_1 t1 where id in (select t2.id from table_alias_2 t2 where t2.col2 >= t1.col1);
+    if(parent_tuple_){
+      jt.set_left(current_tuple);
+      jt.set_right(const_cast<Tuple*>(parent_tuple_));
+      tuple = &jt;
+    }else{
+      tuple = current_tuple;
     }
 
     Value value;
