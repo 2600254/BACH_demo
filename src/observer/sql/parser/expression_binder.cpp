@@ -159,6 +159,11 @@ RC ExpressionBinder::bind_star_expression(Expression* expr, vector<unique_ptr<Ex
   vector<Table *> tables_to_wildcard;
 
   const char *table_name = star_expr->table_name();
+  std::string alias = star_expr->alias();
+  if(alias.size() > 0){
+    LOG_INFO("alias %s is not supported in star expression", alias.c_str());
+    return RC::INVALID_ARGUMENT;
+  }
   if (!is_blank(table_name) && 0 != strcmp(table_name, "*")) {
     //如果有具体表名，只对该表进行通配
     Table *table = context_.find_table(table_name);
