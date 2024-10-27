@@ -67,7 +67,10 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
       if(relation.base_relation.second.size() > 0){
         //如果有别名，也放入map中
         table_map[relation.base_relation.second] = table;
-        binder_context.add_table(relation.base_relation.second, table);
+        if(!binder_context.add_table(relation.base_relation.second, table)){
+          LOG_WARN("table alias %s already exists", relation.base_relation.second.c_str());
+          return RC::INVALID_ARGUMENT;
+        }
       }
     }
     
