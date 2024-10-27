@@ -28,6 +28,11 @@ public:
   virtual ~BinderContext() = default;
 
   void add_table(std::string table_name, Table *table) {
+    // 如果表名已经存在，不再添加,别名重复时不覆盖，以当前作用域为主
+    if(table_map_.find(table_name) != table_map_.end()){
+      LOG_WARN("table %s already exists", table_name.c_str());
+      return;
+    }
     table_map_[table_name] = table; 
     if(table_set_.find(table) == table_set_.end()){
       table_set_.insert(table);

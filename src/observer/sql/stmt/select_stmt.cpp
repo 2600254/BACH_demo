@@ -46,14 +46,9 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
 
   BinderContext binder_context;
 
-  // add parent table to binder context, 包含了表的原名和别名的映射
-  for(auto &parent_table : parent_table_map){
-    binder_context.add_table(parent_table.first, parent_table.second);
-  }
-
   // collect tables in `from` statement
   vector<Table *>                tables;
-  unordered_map<string, Table *> table_map = parent_table_map;
+  unordered_map<string, Table *> table_map = parent_table_map; //直接赋值，后面别名重复时覆盖，以当前作用域为主
   vector<JoinTables> join_tables;
 
   //建立查询中涉及到的表的信息
@@ -124,6 +119,13 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
     // push jt to join_tables
     join_tables.emplace_back(std::move(jt));
   }
+
+  // add parent table to binder context, 包含了表的原名和别名的映射
+  //前面先加当前作用域的表，此时再加上父作用域的表，避免重复
+  for(auto &parent_table : parent_table_map){
+    binder_context.add_table(parent_table.first, parent_table.second);
+  }
+
 
   // collect query fields in `select` statement
   vector<unique_ptr<Expression>> bound_expressions;

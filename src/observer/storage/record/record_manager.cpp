@@ -736,6 +736,7 @@ RecordFileScanner::~RecordFileScanner() { close_scan(); }
 RC RecordFileScanner::open_scan(Table *table, DiskBufferPool &buffer_pool, Trx *trx, LogHandler &log_handler,
     ReadWriteMode mode, ConditionFilter *condition_filter)
 {
+  LOG_INFO("reopen table name: %s", table->name());
   close_scan();
 
   table_            = table;

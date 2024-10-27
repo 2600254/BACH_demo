@@ -189,7 +189,7 @@ RC ExpressionBinder::bind_field_expression(
   FieldExpr *fep = static_cast<FieldExpr *>(field_expr);
   std::string now_table_name = fep->table_name();
   if (now_table_name.size() == 0) {
-    if (context_.query_tables().size() != 1) {
+    if (context_.query_tables().size() == 0) {
       LOG_INFO("cannot determine table for field: %s", fep->field_name());
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }

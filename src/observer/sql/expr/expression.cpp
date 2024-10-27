@@ -118,16 +118,33 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
 RC CastExpr::get_value(const Tuple &tuple, Value &result)
 {
   Value value;
+  RC rc = RC::SUCCESS;
   if(child_->type() == ExprType::SUBQUERY){
     SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(child_.get());
     if(!subquery_expr->has_opened()){
       subquery_expr->open(nullptr);
       subquery_expr->set_opened();
     }
-  }
-  RC rc = child_->get_value(tuple, value);
-  if (rc != RC::SUCCESS) {
-    return rc;
+    rc = subquery_expr->get_value(tuple, value);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+    if(subquery_expr->is_single_value() 
+    || (subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN)){
+      // 如果是单值或者是比较操作符，子查询结束
+      Value test_value;
+      rc = subquery_expr->get_value(tuple, test_value);
+      if (rc == RC::SUCCESS) {
+        LOG_ERROR("subquery should return only one value");
+        return RC::INVALID_ARGUMENT;
+      }
+      subquery_expr->close();
+    }
+  }else{
+    rc = child_->get_value(tuple, value);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
   }
   return cast(value, result);
 }
@@ -731,8 +748,8 @@ RC AggregateExpr::get_value(const Tuple &tuple, Value &value)
   // int index = 0;
   //  spec.set_agg_type(get_aggr_func_type());
   if (is_first_) {
-    bool &is_first_ref = const_cast<bool &>(is_first_);
-    is_first_ref       = false;
+    // bool &is_first_ref = const_cast<bool &>(is_first_);
+    // is_first_ref       = false;
     return tuple.find_cell(spec, value, const_cast<int &>(index_));
   } else {
     return tuple.cell_at(index_, value);
@@ -774,8 +791,7 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
   // 每次返回一行的第一个 cell
   RC rc = physical_oper_->next();
   if (RC::SUCCESS != rc) {
-    physical_oper_->close();
-    is_open_ = false;
+    close();
     return rc;
   }
   return physical_oper_->current_tuple()->cell_at(0, value);
