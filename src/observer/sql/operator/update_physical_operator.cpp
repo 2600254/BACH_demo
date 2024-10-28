@@ -83,6 +83,7 @@ RC UpdatePhysicalOperator::find_target_columns()
 
       if (raw_value.is_null() && !field_meta->nullable()) {
         LOG_WARN("field %s is not nullable", field_name);
+        invalid_ = true;
       }
 
       if (!invalid_) {
