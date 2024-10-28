@@ -64,38 +64,39 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     if (update_field == nullptr) {
       LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_names[i].c_str());
       return RC::SCHEMA_FIELD_NOT_EXIST;
-    } else {
-      if (update_sql.expressions[i]->type() == ExprType::VALUE) {
-        const Value &val = static_cast<const ValueExpr *>(update_sql.expressions[i])->get_value();
-        if (update_field->type() != val.attr_type() || (val.is_null() && update_field->nullable())) {
-          if (update_field->type() == AttrType::CHARS && update_field->len() < val.length()) {
-            LOG_WARN("update chars with longer value.");
-          } else {
-            valid = true;
-          }
-          if (valid && AttrType::CHARS == update_field->type()) {
-            char *char_value = (char *)malloc(update_field->len());
-            memset(char_value, 0, update_field->len());
-            memcpy(char_value, val.data(), val.length());
-            const_cast<Value &>(val).set_data(char_value, update_field->len());
-            free(char_value);
-          }
-        } else if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == val.attr_type()) {
-          if (MAX_TEXT_LENGTH < val.length()) {
-            LOG_WARN("Text length:%d, over max_length 65535", val.length());
-            return RC::INVALID_ARGUMENT;
-          }
-          valid = true;
+    }
+
+    if (update_sql.expressions[i]->type() == ExprType::VALUE) {
+      const Value &val = static_cast<const ValueExpr *>(update_sql.expressions[i])->get_value();
+      if (update_field->type() == val.attr_type() || (val.is_null() && update_field->nullable())) {
+        if (update_field->type() == AttrType::CHARS && update_field->len() < val.length()) {
+          LOG_WARN("update chars with longer value.");
         } else {
           valid = true;
         }
-      } else {
-        if (RC rc = update_sql.expressions[i]->traverse_check(check_field); RC::SUCCESS != rc) {
-          return rc;
+        if (valid && AttrType::CHARS == update_field->type()) {
+          char *char_value = (char *)malloc(update_field->len());
+          memset(char_value, 0, update_field->len());
+          memcpy(char_value, val.data(), val.length());
+          const_cast<Value &>(val).set_data(char_value, update_field->len());
+          free(char_value);
+        }
+      } else if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == val.attr_type()) {
+        if (MAX_TEXT_LENGTH < val.length()) {
+          LOG_WARN("Text length:%d, over max_length 65535", val.length());
+          return RC::INVALID_ARGUMENT;
         }
         valid = true;
+      } else {
+        valid = true;
       }
+    } else {
+      if (RC rc = update_sql.expressions[i]->traverse_check(check_field); RC::SUCCESS != rc) {
+        return rc;
+      }
+      valid = true;
     }
+
     if (!valid) {
       LOG_WARN("update field type mismatch. table=%s", table_name);
       return RC::INVALID_ARGUMENT;

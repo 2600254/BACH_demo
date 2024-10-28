@@ -13,3 +13,10 @@ INSERT INTO null_table3 VALUES (1, 1, 'N8');
 INSERT INTO null_table3 VALUES (6, 6, 'N8');
 
 UPDATE null_table4 SET num=(SELECT null_table3.num from null_table3 where null_table3.id=6) where id=2;
+
+
+
+insert into text_table values (5, 'PNTKTX3IA9OSAE9F1Y5NLM6X27V8ZCNMA09C2R1VX5PML8IRIQUP2POLSGNTAWVF4U4CEK5HHL8MFPCG0ZHKR9OUMEUYKTJ3LOZ3FYCMRD3BGFERR9M4E9FW6E41CLLT3FLEKVLHU48P6KSMYZLCZXAOHC82PGZ6O0ITGIYHA0VU79TF51AQ96X4UJ9QDCYWTNFZCR9L0BGMLO9B5T37O0TLQSRVD');
+update text_table set info='aaa'；
+create table text_table(id int, info text);
+ select * from text_table;
