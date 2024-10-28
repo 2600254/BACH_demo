@@ -34,3 +34,18 @@ INSERT INTO null_table4 VALUES (6, 6, 'N6');
 INSERT INTO null_table4 VALUES (6, 6, 'N6');
 UPDATE null_table4 SET num=null where id=4;
 UPDATE null_table4 SET id=null where num is null;
+
+create table null_table5(id int null, num int not null);
+create unique index index_id on null_table5(id);
+insert into null_table5 values(1, 1);
+insert into null_table5 values(null, 2); 
+
+
+CREATE TABLE null_table5(id int null, num int not null);
+CREATE UNIQUE INDEX index_id on null_table5(id);
+INSERT INTO null_table5 VALUES(1,1);
+INSERT INTO null_table5 VALUES(1,1);
+...
+INSERT INTO null_table5 VALUES(null,2);
+- SUCCESS
++ FAILURE
