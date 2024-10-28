@@ -27,7 +27,8 @@ class Table;
 class UpdateStmt : public Stmt
 {
 public:
-  UpdateStmt(Table *table, std::vector<Value> &&values, std::vector<FieldMeta> fields, FilterStmt *filter_stmt);
+  UpdateStmt(
+      Table *table, std::vector<Expression *> expressions, std::vector<FieldMeta> fields, FilterStmt *filter_stmt);
   ~UpdateStmt() override;
 
 public:
@@ -36,16 +37,16 @@ public:
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table                  *table() const { return table_; }
-  std::vector<Value>     values() const { return values_; }
-  std::vector<FieldMeta> fields() const { return fields_; }
-  FilterStmt             *filter_stmt() const { return filter_stmt_; }
+  Table                    *table() const { return table_; }
+  std::vector<Expression *> expressions() const { return expressions_; }
+  std::vector<FieldMeta>    fields() const { return fields_; }
+  FilterStmt               *filter_stmt() const { return filter_stmt_; }
 
 private:
   Table *table_ = nullptr;
 
-  std::vector<Value>     values_;
-  std::vector<FieldMeta> fields_;
+  std::vector<Expression *> expressions_;
+  std::vector<FieldMeta>    fields_;
 
   FilterStmt *filter_stmt_ = nullptr;  // 过滤条件
 };

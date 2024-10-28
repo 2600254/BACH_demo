@@ -331,20 +331,20 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &logical_oper, std::
     }
   }
 
-  // for (auto& value : logical_oper.values()) {
-  //   rc = value->traverse_check([](Expression* expr) {
-  //     if (expr->type() == ExprType::SUBQUERY) {
-  //       SubQueryExpr* sub_query_expr = static_cast<SubQueryExpr*>(expr);
-  //       sub_query_expr->generate_physical_oper();
-  //     }
-  //     return RC::SUCCESS;
-  //   });
-  //   if (RC::SUCCESS != rc) {
-  //     return rc;
-  //   }
-  // }
+  for (auto& value : logical_oper.expressions()) {
+    rc = value->traverse_check([](Expression* expr) {
+      if (expr->type() == ExprType::SUBQUERY) {
+        SubQueryExpr* sub_query_expr = static_cast<SubQueryExpr*>(expr);
+        sub_query_expr->generate_physical_oper();
+      }
+      return RC::SUCCESS;
+    });
+    if (RC::SUCCESS != rc) {
+      return rc;
+    }
+  }
 
-  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(logical_oper.table(), logical_oper.values(), logical_oper.fields()));
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(logical_oper.table(), logical_oper.expressions(), logical_oper.fields()));
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));

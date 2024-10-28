@@ -19,8 +19,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 
 UpdateStmt::UpdateStmt(
-    Table *table, std::vector<Value> &&values, std::vector<FieldMeta> fields, FilterStmt *filter_stmt)
-    : table_(table), values_(values), fields_(fields), filter_stmt_(filter_stmt)
+    Table *table, std::vector<Expression *> expressions, std::vector<FieldMeta> fields, FilterStmt *filter_stmt)
+    : table_(table), expressions_(expressions), fields_(fields), filter_stmt_(filter_stmt)
 {}
 
 UpdateStmt::~UpdateStmt()
@@ -46,43 +46,67 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
-  std::unordered_map<std::string, Table *> table_map;
-  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+  auto check_field = [&db](Expression *expr) {
+    if (expr->type() == ExprType::SUBQUERY) {
+      SubQueryExpr *subquery_expr = static_cast<SubQueryExpr *>(expr);
+      return subquery_expr->generate_select_stmt(db, {});
+    }
+    return RC::SUCCESS;
+  };
 
-  std::vector<Value>     values;
-  std::vector<FieldMeta> fields;
-  const TableMeta       &table_meta = table->table_meta();
+  std::vector<Expression *> values;
+  std::vector<FieldMeta>    fields;
+  const TableMeta          &table_meta = table->table_meta();
 
   for (size_t i = 0; i < update_sql.attribute_names.size(); i++) {
     FieldMeta *update_field = const_cast<FieldMeta *>(table_meta.field(update_sql.attribute_names[i].c_str()));
+    bool       valid        = false;
     if (update_field == nullptr) {
       LOG_WARN("no such field. table_name=%s, field_name=%s", table_name, update_sql.attribute_names[i].c_str());
       return RC::SCHEMA_FIELD_NOT_EXIST;
     } else {
-      bool valid = true;
-      const Value &value = update_sql.values[i];
-      // check type nullable
-      if (value.is_null() && !update_field->nullable()){
-        valid = false;
-      }
-      if (!valid) {
-        LOG_WARN("update field type mismatch. table=%s", table_name);
-        return RC::INVALID_ARGUMENT;
-      }
-
-      if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == update_sql.values[i].attr_type()) {
-        if (MAX_TEXT_LENGTH < update_sql.values[i].length()) {
-          LOG_WARN("Text length:%d, over max_length 65535", update_sql.values[i].length());
-          return RC::INVALID_ARGUMENT;
+      if (update_sql.expressions[i]->type() == ExprType::VALUE) {
+        const Value &val = static_cast<const ValueExpr *>(update_sql.expressions[i])->get_value();
+        if (update_field->type() != val.attr_type() || (val.is_null() && update_field->nullable())) {
+          if (update_field->type() == AttrType::CHARS && update_field->len() < val.length()) {
+            LOG_WARN("update chars with longer value.");
+          } else {
+            valid = true;
+          }
+          if (valid && AttrType::CHARS == update_field->type()) {
+            char *char_value = (char *)malloc(update_field->len());
+            memset(char_value, 0, update_field->len());
+            memcpy(char_value, val.data(), val.length());
+            const_cast<Value &>(val).set_data(char_value, update_field->len());
+            free(char_value);
+          }
+        } else if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == val.attr_type()) {
+          if (MAX_TEXT_LENGTH < val.length()) {
+            LOG_WARN("Text length:%d, over max_length 65535", val.length());
+            return RC::INVALID_ARGUMENT;
+          }
+          valid = true;
+        } else {
+          valid = true;
         }
+      } else {
+        if (RC rc = update_sql.expressions[i]->traverse_check(check_field); RC::SUCCESS != rc) {
+          return rc;
+        }
+        valid = true;
       }
     }
+    if (!valid) {
+      LOG_WARN("update field type mismatch. table=%s", table_name);
+      return RC::INVALID_ARGUMENT;
+    }
+
     fields.emplace_back(*update_field);
-    values.emplace_back(update_sql.values[i]);
+    values.emplace_back(update_sql.expressions[i]);
   }
 
-
-
+  std::unordered_map<std::string, Table *> table_map;
+  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(db, table, &table_map, update_sql.conditions, filter_stmt);
   if (rc != RC::SUCCESS) {
