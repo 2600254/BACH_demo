@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table_meta.h"
 #include "common/types.h"
 #include "common/lang/span.h"
+#include "storage/table/base_table.h"
 #include "common/lang/functional.h"
 
 struct RID;
@@ -36,7 +37,7 @@ class Db;
  * @brief 表
  *
  */
-class Table
+class Table : public BaseTable
 {
 public:
   Table() = default;
@@ -119,12 +120,11 @@ public:
   RC read_text(int64_t offset, int64_t length, char *data) const;
 
 public:
-  int32_t     table_id() const { return table_meta_.table_id(); }
-  const char *name() const;
+  virtual int32_t table_id() const { return table_meta_.table_id(); }
+  virtual const char *name() const;
+  virtual const TableMeta &table_meta() const;
 
   Db *db() const { return db_; }
-
-  const TableMeta &table_meta() const;
 
   RC sync();
 
