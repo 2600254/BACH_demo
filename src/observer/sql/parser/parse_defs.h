@@ -40,16 +40,14 @@ struct RelAttrSqlNode
   std::string attribute_name;  ///< attribute name              属性名
 };
 
-
 /**
  * @brief 描述一个order by子句
  */
 struct OrderBySqlNode
 {
-  Expression * expr = nullptr;
-  bool is_asc;// true 为升序
+  Expression *expr = nullptr;
+  bool        is_asc;  // true 为升序
 };
-
 
 /**
  * @brief 描述比较运算符
@@ -73,7 +71,6 @@ enum CompOp
   NOT_EXISTS_OP,
   NO_OP,
 };
-
 
 /**
  * @brief 描述一串 inner join
@@ -100,11 +97,11 @@ struct InnerJoinSqlNode
 
 struct SelectSqlNode
 {
-  std::vector<Expression*> expressions;  ///< 查询的表达式
-  std::vector<InnerJoinSqlNode>   relations;///< 查询的表
- Expression*            conditions = nullptr;   ///< 查询条件，使用AND串联起来多个条件
-  std::vector<Expression*> group_by;     ///< group by clause
-  std::vector<OrderBySqlNode>     orderbys; ///< attributes in order clause
+  std::vector<Expression *>     expressions;           ///< 查询的表达式
+  std::vector<InnerJoinSqlNode> relations;             ///< 查询的表
+  Expression                   *conditions = nullptr;  ///< 查询条件，使用AND串联起来多个条件
+  std::vector<Expression *>     group_by;              ///< group by clause
+  std::vector<OrderBySqlNode>   orderbys;              ///< attributes in order clause
 };
 
 /**
@@ -113,7 +110,7 @@ struct SelectSqlNode
  */
 struct CalcSqlNode
 {
-  std::vector<Expression*> expressions;  ///< calc clause
+  std::vector<Expression *> expressions;  ///< calc clause
 };
 
 /**
@@ -133,8 +130,8 @@ struct InsertSqlNode
  */
 struct DeleteSqlNode
 {
-  std::string                   relation_name;  ///< Relation to delete from
-  Expression* conditions = nullptr;
+  std::string relation_name;  ///< Relation to delete from
+  Expression *conditions = nullptr;
 };
 
 /**
@@ -145,15 +142,15 @@ struct DeleteSqlNode
 struct UpdateKV
 {
   std::string attr_name;  ///< Relation to delete from
-  Value       value;
+  Expression *expression = nullptr;
 };
 
 struct UpdateSqlNode
 {
-  std::string                   relation_name;  ///< Relation to update
-  std::vector<std::string>      attribute_names;
-  std::vector<Value>            values;
-  Expression*                   conditions = nullptr;      ///< 更新条件
+  std::string               relation_name;  ///< Relation to update
+  std::vector<std::string>  attribute_names;
+  std::vector<Expression *> expressions;
+  Expression               *conditions  = nullptr;  ///< 更新条件
 };
 
 /**
@@ -163,9 +160,9 @@ struct UpdateSqlNode
  */
 struct AttrInfoSqlNode
 {
-  AttrType    type;    ///< Type of attribute
-  std::string name;    ///< Attribute name
-  size_t      length;  ///< Length of attribute
+  AttrType    type;      ///< Type of attribute
+  std::string name;      ///< Attribute name
+  size_t      length;    ///< Length of attribute
   bool        nullable;  ///< 是否允许为空
 };
 

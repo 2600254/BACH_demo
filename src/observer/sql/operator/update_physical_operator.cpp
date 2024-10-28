@@ -38,6 +38,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
 RC UpdatePhysicalOperator::find_target_columns()
 {
   // 如果字段检查失败 并不停止执行 只是打个标志 因为如果更新 0 行必然返回成功
+  RC        rc             = RC::SUCCESS;
   const int sys_field_num  = table_->table_meta().sys_field_num();
   const int user_field_num = table_->table_meta().field_num() - sys_field_num;
   RowTuple  tp;
@@ -52,12 +53,44 @@ RC UpdatePhysicalOperator::find_target_columns()
       if (0 != strcmp(field_name, attr_name.c_str())) {
         continue;
       }
-      if (values_[c_idx].is_null() && !field_meta->nullable()){
-        LOG_WARN("field %s is not nullable", field_name);
-        return RC::INVALID_ARGUMENT;
+
+      Expression *expr = expressions_[c_idx];
+
+      Value raw_value;
+
+      if (expr->type() == ExprType::SUBQUERY) {
+        SubQueryExpr *subquery_expr = static_cast<SubQueryExpr *>(expr);
+
+        if (rc = subquery_expr->open(nullptr); RC::SUCCESS != rc) {
+          return rc;
+        }
+        rc = subquery_expr->get_value(tp, raw_value);
+        if (RC::RECORD_EOF == rc) {
+          raw_value.set_null();
+          rc = RC::SUCCESS;
+        } else if (RC::SUCCESS != rc) {
+          return rc;
+        } else if (subquery_expr->has_more_row(tp)) {
+          invalid_ = true;
+          break;
+        }
+        subquery_expr->close();
+      } else {
+        if (rc = expr->get_value(tp, raw_value); RC::SUCCESS != rc) {
+          return rc;
+        }
       }
-      fields_id_.emplace_back(i + sys_field_num);
-      fields_meta_.emplace_back(*field_meta);
+
+      if (raw_value.is_null() && !field_meta->nullable()) {
+        LOG_WARN("field %s is not nullable", field_name);
+        invalid_ = true;
+      }
+
+      if (!invalid_) {
+        raw_values_.emplace_back(raw_value);
+        fields_id_.emplace_back(i + sys_field_num);
+        fields_meta_.emplace_back(*field_meta);
+      }
       break;
     }
   }
@@ -74,9 +107,9 @@ RC UpdatePhysicalOperator::next()
 
   PhysicalOperator *child = children_[0].get();
   while (RC::SUCCESS == (rc = child->next())) {
-    // if (invalid_) {  // 子查询结果为多行
-    //   return RC::INVALID_ARGUMENT;
-    // }
+    if (invalid_) {  // 子查询结果为多行
+      return RC::INVALID_ARGUMENT;
+    }
 
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
@@ -138,7 +171,7 @@ RC UpdatePhysicalOperator::construct_new_record(Record &old_record, Record &new_
 
   std::vector<Value> old_value;
   for (size_t c_idx = 0; c_idx < fields_.size(); c_idx++) {
-    Value     *value      = &values_[c_idx];
+    Value     *value      = &raw_values_[c_idx];
     FieldMeta &field_meta = fields_meta_[c_idx];
 
     // 判断 新值与旧值是否相等，缓存旧值，将新值复制到新的record里
@@ -147,15 +180,15 @@ RC UpdatePhysicalOperator::construct_new_record(Record &old_record, Record &new_
     common::Bitmap   new_null_bitmap(tmp_record_data_ + null_field->offset(), table_->table_meta().field_num());
 
     // new_null_bitmap.clear_bit(fields_id_[c_idx]);
-    if (value->is_null() && old_null_bitmap.get_bit(fields_id_[c_idx])){
+    if (value->is_null() && old_null_bitmap.get_bit(fields_id_[c_idx])) {
       old_value.emplace_back(field_meta.type(), nullptr, 0);
-    } else if (value->is_null()){
+    } else if (value->is_null()) {
       new_null_bitmap.set_bit(fields_id_[c_idx]);
       old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());
     } else {
       new_null_bitmap.clear_bit(fields_id_[c_idx]);
       if (AttrType::CHARS == field_meta.type()) {
-      memcpy(tmp_record_data_ + field_meta.offset(), value->data(),value->length() == field_meta.len() ? value->length() : value->length() + 1);
+        memcpy(tmp_record_data_ + field_meta.offset(), value->data(),value->length() == field_meta.len() ? value->length() : value->length() + 1);
       } else if (AttrType::TEXTS == field_meta.type()){
         int64_t position[2];
         position[1] = value->length();
@@ -203,9 +236,9 @@ RC UpdatePhysicalOperator::construct_old_record(Record &updated_record, Record &
     common::Bitmap   old_null_bitmap(tmp_record_data_ + null_field->offset(), table_->table_meta().field_num());
     common::Bitmap updated_null_bitmap(updated_record.data() + null_field->offset(), table_->table_meta().field_num());
 
-    if (value->is_null()){
+    if (value->is_null()) {
       old_null_bitmap.set_bit(fields_id_[c_idx]);
-    }else{
+    } else {
       old_null_bitmap.clear_bit(fields_id_[c_idx]);
     }
     memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());

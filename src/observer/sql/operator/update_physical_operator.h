@@ -27,8 +27,8 @@ class UpdateStmt;
 class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdatePhysicalOperator(Table *table, std::vector<Value> values, std::vector<FieldMeta> fields) 
-    : table_(table), values_(std::move(values))
+  UpdatePhysicalOperator(Table *table, std::vector<Expression*> expressions, std::vector<FieldMeta> fields) 
+    : table_(table), expressions_(std::move(expressions))
   {
     for (FieldMeta &field : fields) {
       fields_.emplace_back(field.name());
@@ -69,7 +69,8 @@ public:
 private:
   Table *table_ = nullptr;
   Trx *trx_ = nullptr;
-  std::vector<Value> values_;
+  std::vector<Expression *> expressions_;
+  std::vector<Value> raw_values_;
   std::vector<std::string> fields_;
 
   std::vector<int> fields_id_;

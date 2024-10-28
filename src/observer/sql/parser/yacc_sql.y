@@ -593,14 +593,14 @@ update_stmt:      /*  update 语句的语法解析树*/
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
       $$->update.attribute_names.emplace_back($4->attr_name);
-      $$->update.values.emplace_back($4->value);
+      $$->update.expressions.emplace_back($4->expression);
       if ($5 != nullptr) {
         for (UpdateKV kv : *$5) {
           $$->update.attribute_names.emplace_back(kv.attr_name);
-          $$->update.values.emplace_back(kv.value);
+          $$->update.expressions.emplace_back(kv.expression);
         }
         delete $5;
-      }
+      } 
       $$->update.conditions = nullptr;
       if ($6!= nullptr) {
         $$->update.conditions = $6;
@@ -626,11 +626,11 @@ update_kv_list:
     ;
 
 update_kv:
-    ID EQ value
+    ID EQ expression
     {
       $$ = new UpdateKV;
       $$->attr_name = $1;
-      $$->value = *$3;
+      $$->expression = $3;
       free($1);
     }
     ;

@@ -2285,14 +2285,14 @@ yyreduce:
       (yyval.sql_node) = new ParsedSqlNode(SCF_UPDATE);
       (yyval.sql_node)->update.relation_name = (yyvsp[-4].string);
       (yyval.sql_node)->update.attribute_names.emplace_back((yyvsp[-2].update_kv)->attr_name);
-      (yyval.sql_node)->update.values.emplace_back((yyvsp[-2].update_kv)->value);
+      (yyval.sql_node)->update.expressions.emplace_back((yyvsp[-2].update_kv)->expression);
       if ((yyvsp[-1].update_kv_list) != nullptr) {
         for (UpdateKV kv : *(yyvsp[-1].update_kv_list)) {
           (yyval.sql_node)->update.attribute_names.emplace_back(kv.attr_name);
-          (yyval.sql_node)->update.values.emplace_back(kv.value);
+          (yyval.sql_node)->update.expressions.emplace_back(kv.expression);
         }
         delete (yyvsp[-1].update_kv_list);
-      }
+      } 
       (yyval.sql_node)->update.conditions = nullptr;
       if ((yyvsp[0].expression)!= nullptr) {
         (yyval.sql_node)->update.conditions = (yyvsp[0].expression);
@@ -2329,7 +2329,7 @@ yyreduce:
     {
       (yyval.update_kv) = new UpdateKV;
       (yyval.update_kv)->attr_name = (yyvsp[-2].string);
-      (yyval.update_kv)->value = *(yyvsp[0].value);
+      (yyval.update_kv)->expression = (yyvsp[0].expression);
       free((yyvsp[-2].string));
     }
 #line 2336 "yacc_sql.cpp"
