@@ -20,3 +20,9 @@ insert into text_table values (5, 'PNTKTX3IA9OSAE9F1Y5NLM6X27V8ZCNMA09C2R1VX5PML
 update text_table set info='aaa'；
 create table text_table(id int, info text);
  select * from text_table;
+
+CREATE TABLE update_table_1(id int, t_name char(20), col1 int, col2 int);
+CREATE INDEX index_id on update_table_1(id);
+INSERT INTO update_table_1 VALUES (78, 'IXS68M8DYPT8KTWQ', 55, 48);
+ 	
+UPDATE update_table_1 SET t_name='9F' WHERE id=78;

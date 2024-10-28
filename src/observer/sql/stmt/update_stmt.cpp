@@ -74,13 +74,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
         } else {
           valid = true;
         }
-        if (valid && AttrType::CHARS == update_field->type()) {
-          char *char_value = (char *)malloc(update_field->len());
-          memset(char_value, 0, update_field->len());
-          memcpy(char_value, val.data(), val.length());
-          const_cast<Value &>(val).set_data(char_value, update_field->len());
-          free(char_value);
-        }
       } else if (AttrType::TEXTS == update_field->type() && AttrType::CHARS == val.attr_type()) {
         if (MAX_TEXT_LENGTH < val.length()) {
           LOG_WARN("Text length:%d, over max_length 65535", val.length());
