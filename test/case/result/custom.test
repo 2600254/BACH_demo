@@ -26,3 +26,11 @@ CREATE INDEX index_id on update_table_1(id);
 INSERT INTO update_table_1 VALUES (78, 'IXS68M8DYPT8KTWQ', 55, 48);
  	
 UPDATE update_table_1 SET t_name='9F' WHERE id=78;
+
+
+CREATE TABLE null_table4(id int not null, num int null, name char(10) null);
+INSERT INTO null_table4 VALUES (4, 4, 'N4');
+INSERT INTO null_table4 VALUES (6, 6, 'N6');
+INSERT INTO null_table4 VALUES (6, 6, 'N6');
+UPDATE null_table4 SET num=null where id=4;
+UPDATE null_table4 SET id=null where num is null;

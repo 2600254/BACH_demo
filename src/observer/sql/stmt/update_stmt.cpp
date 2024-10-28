@@ -68,7 +68,9 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
 
     if (update_sql.expressions[i]->type() == ExprType::VALUE) {
       const Value &val = static_cast<const ValueExpr *>(update_sql.expressions[i])->get_value();
-      if (update_field->type() == val.attr_type() || (val.is_null() && update_field->nullable())) {
+      if (val.is_null() && !update_field->nullable()){
+        valid = false;
+      } else if (update_field->type() == val.attr_type() || (val.is_null() && update_field->nullable())) {
         if (update_field->type() == AttrType::CHARS && update_field->len() < val.length()) {
           LOG_WARN("update chars with longer value.");
         } else {
