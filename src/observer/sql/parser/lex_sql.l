@@ -114,8 +114,7 @@ DATE                                    RETURN_TOKEN(DATE_T);
 TEXT                                    RETURN_TOKEN(TEXT_T);
 CHAR                                    RETURN_TOKEN(STRING_T);
 FLOAT                                   RETURN_TOKEN(FLOAT_T);
-LOAD                                    RETURN_TOKEN(LOAD);
-DATA                                    RETURN_TOKEN(DATA);
+LOAD" "DATA                             RETURN_TOKEN(LOAD_DATA);
 INFILE                                  RETURN_TOKEN(INFILE);
 MAX |
 MIN |

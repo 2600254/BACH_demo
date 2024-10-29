@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 
 UpdateStmt::UpdateStmt(
-    Table *table, std::vector<Expression *> expressions, std::vector<FieldMeta> fields, FilterStmt *filter_stmt)
+    BaseTable *table, std::vector<Expression *> expressions, std::vector<FieldMeta> fields, FilterStmt *filter_stmt)
     : table_(table), expressions_(expressions), fields_(fields), filter_stmt_(filter_stmt)
 {}
 
@@ -40,7 +40,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
   }
 
   // check whether the table exists
-  Table *table = db->find_table(table_name);
+  BaseTable *table = db->find_base_table(table_name);
   if (table == nullptr) {
     LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
     return RC::SCHEMA_TABLE_NOT_EXIST;
@@ -101,8 +101,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
     values.emplace_back(update_sql.expressions[i]);
   }
 
-  std::unordered_map<std::string, Table *> table_map;
-  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+  std::unordered_map<std::string, BaseTable *> table_map;
+  table_map.insert(std::pair<std::string, BaseTable *>(std::string(table_name), table));
   FilterStmt *filter_stmt = nullptr;
   RC          rc          = FilterStmt::create(db, table, &table_map, update_sql.conditions, filter_stmt);
   if (rc != RC::SUCCESS) {

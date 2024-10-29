@@ -76,8 +76,8 @@ public:
   RC drop_table(const char *table_name);
 
   // view相关
-  RC create_view(const char *view_name, bool allow_write, const std::vector<AttrInfoSqlNode> attr_infos, 
-                const std::vector<Field> &map_fields, SelectSqlNode *select_sql);
+  RC create_view(const char *view_name, bool allow_write, span<const AttrInfoSqlNode> attributes, 
+                const std::vector<Field> &map_fields, SelectSqlNode *select_sql, const StorageFormat storage_format = StorageFormat::ROW_FORMAT);
 
   /**
    * @brief 根据表名查找表

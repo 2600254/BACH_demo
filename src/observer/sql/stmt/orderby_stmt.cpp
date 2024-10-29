@@ -7,7 +7,7 @@
 #include "sql/stmt/filter_stmt.h"
 #include "sql/expr/expression.h"
 
-RC OrderByStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC OrderByStmt::create(Db *db, BaseTable *default_table, std::unordered_map<std::string, BaseTable *> *tables,
       const std::vector<unique_ptr<OrderBySqlNode>> &orderby_sql_nodes, 
       // const std::vector<OrderBySqlNode> &orderby_sql_nodes, 
       OrderByStmt *&stmt,

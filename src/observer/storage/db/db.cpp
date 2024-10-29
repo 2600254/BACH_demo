@@ -165,8 +165,8 @@ RC Db::create_table(const char *table_name, span<const AttrInfoSqlNode> attribut
   return RC::SUCCESS;
 }
 
-RC Db::create_view(const char *view_name, bool allow_write, const std::vector<AttrInfoSqlNode> attr_infos, 
-                  const std::vector<Field> &map_fields, SelectSqlNode *select_sql)
+RC Db::create_view(const char *view_name, bool allow_write, span<const AttrInfoSqlNode> attributes, const std::vector<Field> &map_fields,
+                                                SelectSqlNode *select_sql, const StorageFormat storage_format)
 {
   RC rc = RC::SUCCESS;
   // check table_name
@@ -178,7 +178,7 @@ RC Db::create_view(const char *view_name, bool allow_write, const std::vector<At
   View *view = new View();
   int32_t table_id = next_table_id_++;
   std::string view_file_path = view_meta_file(path_.c_str(), view_name);
-  rc = view->create(table_id, allow_write, view_file_path.c_str(), view_name, path_.c_str(), attr_infos, map_fields, select_sql);
+  rc = view->create(this, table_id, allow_write, view_file_path.c_str(), view_name, path_.c_str(), attributes, map_fields, select_sql, storage_format);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to create table %s.", view_name);
     delete view;
@@ -204,10 +204,6 @@ RC Db::drop_table(const char *table_name){
   {
     LOG_WARN("table : %s not exist", table_name);
     rc = RC::SCHEMA_TABLE_NOT_EXIST;
-  }
-  else if((rc = table->drop(path_.c_str())) != RC::SUCCESS)
-  {
-    LOG_WARN("table drop file,errno: %s", strrc(rc));
   }
   else
   {

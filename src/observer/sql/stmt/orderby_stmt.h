@@ -49,7 +49,7 @@ public:
   RC bind_unbound_field_expression(std::unique_ptr<Expression> &expr);
 
 public:
-  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create(Db *db, BaseTable *default_table, std::unordered_map<std::string, BaseTable *> *tables,
       const std::vector<std::unique_ptr<OrderBySqlNode>> &orderby_sql_nodes, 
       // const std::vector<OrderBySqlNode> &orderby_sql_nodes, 
       OrderByStmt *&stmt,

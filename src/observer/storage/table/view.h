@@ -5,6 +5,7 @@
 #include "sql/parser/parse_defs.h"
 #include "storage/table/base_table.h"
 #include "storage/table/table_meta.h"
+#include "common/lang/span.h"
 
 class Db;
 class Field;
@@ -18,14 +19,16 @@ public:
   View() = default;
   ~View() = default;
 
-  RC create(int32_t table_id, 
+  RC create(Db *db, 
+            int32_t table_id, 
             bool allow_write, 
             const char *path,       // .view文件路径、名称
             const char *name,       // view_name
             const char *base_dir,   // db/sys
-            const std::vector<AttrInfoSqlNode> &attr_infos, 
+            span<const AttrInfoSqlNode> attributes, 
             const std::vector<Field> &map_fields, 
-            SelectSqlNode *select_sql);
+            SelectSqlNode *select_sql,
+            StorageFormat storage_format);
   RC open();
   RC drop();
   void set_db(Db *db) { db_ = db; }

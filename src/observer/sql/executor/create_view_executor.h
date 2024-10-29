@@ -32,7 +32,7 @@ public:
     CreateViewStmt *create_view_stmt = static_cast<CreateViewStmt*>(stmt);
 
     rc = session->get_current_db()->create_view(create_view_stmt->view_name().c_str(), create_view_stmt->allow_write(),
-              create_view_stmt->attr_infos(), create_view_stmt->map_fields(), create_view_stmt->get_select_sql_node());
+              create_view_stmt->attr_infos(), create_view_stmt->map_fields(), create_view_stmt->get_select_sql_node(), create_view_stmt->storage_format());
     if (RC::SUCCESS != rc) {
       LOG_WARN("failed to create view %s, rc=%s", create_view_stmt->view_name().c_str(), strrc(rc));
     }

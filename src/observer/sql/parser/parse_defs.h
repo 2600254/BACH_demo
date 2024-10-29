@@ -225,6 +225,7 @@ struct CreateViewSqlNode
 {
   std::string view_name;
   std::vector<std::string> col_names;   // view列到原始表的映射
+  std::string                  storage_format;  ///< storage format
 };
 
 /**

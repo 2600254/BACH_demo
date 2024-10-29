@@ -177,8 +177,7 @@ public:
   const char *table_name() const { return table_name_.c_str(); }
 
   unique_ptr<Expression> deep_copy() const override { 
-    LOG_WARN("RC::UNIMPLEMENTED StarExpr deep_copy");
-    return nullptr; 
+    return unique_ptr<StarExpr>(new StarExpr(*this));
   }
 
 private:
@@ -193,7 +192,7 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
+  FieldExpr(const BaseTable *table, const FieldMeta *field) : field_(table, field) {}
   FieldExpr(const std::string& table_name, const std::string& field_name)
       : table_name_(table_name), field_name_(field_name) {}
   FieldExpr(const Field &field) 
@@ -232,6 +231,8 @@ public:
   {
     return std::unique_ptr<FieldExpr>(new FieldExpr(*this));
   }
+  
+  FieldMeta get_field_meta() const { return *field_.meta(); }
 
 private:
   Field field_;
@@ -321,7 +322,7 @@ public:
 
   AttrType value_type() const {return AttrType::UNDEFINED;}
 
-  RC generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables);
+  RC generate_select_stmt(Db* db, const std::unordered_map<std::string, BaseTable *> &tables);
   RC generate_logical_oper();
   RC generate_physical_oper();
 
@@ -341,6 +342,7 @@ public:
 
   void set_comp(CompOp comp) {comp_ = comp;}
 
+    std::unique_ptr<Expression> deep_copy() const;
 
 private:
   std::unique_ptr<SelectSqlNode> sql_node_;

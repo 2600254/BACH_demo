@@ -8,15 +8,11 @@
 #include "storage/table/view.h"
 #include "storage/field/field.h"
 #include "storage/field/field_meta.h"
+#include "storage/db/db.h"
+#include "storage/trx/trx.h"
 
-RC View::create(int32_t table_id, 
-                bool allow_write, 
-                const char *path,       // .view文件路径、名称
-                const char *name,       // view_name
-                const char *base_dir,   // db/sys
-                const std::vector<AttrInfoSqlNode> &attr_infos, 
-                const std::vector<Field> &map_fields, 
-                SelectSqlNode *select_sql)
+RC View::create(Db *db,int32_t table_id,  bool allow_write, const char *path, const char *name, const char *base_dir,
+    span<const AttrInfoSqlNode> attributes, const std::vector<Field> &map_fields, SelectSqlNode *select_sql, StorageFormat storage_format)
 {
   RC rc = RC::SUCCESS;
   if (table_id < 0) {
@@ -27,20 +23,16 @@ RC View::create(int32_t table_id,
     LOG_WARN("Name cannot be empty");
     return RC::INVALID_ARGUMENT;
   }
-  if (attr_infos.size() <= 0) {
-    LOG_WARN("Invalid arguments. view_name=%s, attribute_count=%d", name, attr_infos.size());
+  if (attributes.size() == 0) {
+    LOG_WARN("Invalid arguments. table_name=%s, attribute_count=%d", name, attributes.size());
     return RC::INVALID_ARGUMENT;
   }
-  
+
   LOG_INFO("Begin to create view %s:%s", base_dir, name);
   set_view_type();
   allow_write_ = allow_write;
   map_fields_ = map_fields;
   select_sql_.deep_copy(*select_sql);
-  if ((rc = table_meta_.init(table_id, name, attr_infos.size(), attr_infos.data())) != RC::SUCCESS) {
-    LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
-    return rc;  // delete table file
-  }
 
   // 使用 name.view记录一个视图的元数据，判断视图文件是否已经存在
   int fd = ::open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
@@ -53,6 +45,13 @@ RC View::create(int32_t table_id,
     return RC::IOERR_OPEN;
   }
   close(fd);
+
+  // 创建文件
+  const vector<FieldMeta> *trx_fields = db->trx_kit().trx_fields();
+  if ((rc = table_meta_.init(table_id, name, trx_fields, attributes, storage_format)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to init table meta. name:%s, ret:%d", name, rc);
+    return rc;  // delete table file
+  }
 
   // 记录元数据到文件中
   std::fstream fs;

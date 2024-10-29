@@ -45,6 +45,11 @@ public:
   void   add_tuple(std::unique_ptr<Tuple> tuple);
   Tuple &tuple_at(size_t index);
 
+  int get_tuple_size() const { return tuples_.size(); }
+  RC get_tuple_rid(int tuple_idx, const BaseTable *&table, RID &rid) const override{
+    return tuples_[tuple_idx]->get_tuple_rid(tuple_idx, table, rid);
+  }
+
 private:
   std::vector<std::unique_ptr<Tuple>> tuples_;
 };

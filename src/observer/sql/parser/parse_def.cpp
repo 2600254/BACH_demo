@@ -22,9 +22,9 @@ void InnerJoinSqlNode::deep_copy(const InnerJoinSqlNode &src)
 
 void SelectSqlNode::deep_copy(const SelectSqlNode &src)
 {
-  project_exprs.clear();
-  for (size_t i = 0; i < src.project_exprs.size(); i++) {
-    project_exprs.emplace_back(src.project_exprs[i]->deep_copy().release());
+  expressions.clear();
+  for (size_t i = 0; i < src.expressions.size(); i++) {
+    expressions.emplace_back(src.expressions[i]->deep_copy().release());
   }
   relations.clear();
   for (size_t i =0; i < src.relations.size(); i++) {
@@ -41,11 +41,8 @@ void SelectSqlNode::deep_copy(const SelectSqlNode &src)
     dst.deep_copy(src.orderbys[i]);
     orderbys.emplace_back(std::move(dst));
   }
-  groupby_exprs.clear();
-  for (size_t i = 0; i < src.groupby_exprs.size(); i++) {
-    groupby_exprs.emplace_back(src.groupby_exprs[i]->deep_copy().release());
-  }
-  if (nullptr != src.having_conditions) {
-    having_conditions = src.having_conditions->deep_copy().release();
+  group_by.clear();
+  for (size_t i = 0; i < src.group_by.size(); i++) {
+    group_by.emplace_back(src.group_by[i]->deep_copy().release());
   }
 }

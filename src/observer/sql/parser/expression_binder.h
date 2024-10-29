@@ -27,7 +27,7 @@ public:
   BinderContext()          = default;
   virtual ~BinderContext() = default;
 
-  bool add_table(std::string table_name, Table *table) {
+  bool add_table(std::string table_name, BaseTable *table) {
     // 如果表名已经存在，不再添加,别名重复时不覆盖，以当前作用域为主
     if(table_map_.find(table_name) != table_map_.end()){
       LOG_WARN("table %s already exists", table_name.c_str());
@@ -41,16 +41,16 @@ public:
     return true;
   }
 
-  Table *find_table(const char *table_name) const;
+  BaseTable *find_table(const char *table_name) const;
 
-  const std::vector<Table *> &query_tables() const {
+  const std::vector<BaseTable *> &query_tables() const {
      return query_tables_; 
   }
 
 private:
-  std::vector<Table *> query_tables_;   // 用于存放查询中涉及到的表
-  std::unordered_map<std::string, Table *> table_map_; // 表原名和别名对表的映射
-  std::unordered_set<Table *> table_set_; // 用于去重
+  std::vector<BaseTable *> query_tables_;   // 用于存放查询中涉及到的表
+  std::unordered_map<std::string, BaseTable *> table_map_; // 表原名和别名对表的映射
+  std::unordered_set<BaseTable *> table_set_; // 用于去重
 };
 
 /**

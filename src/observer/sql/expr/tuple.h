@@ -653,3 +653,27 @@ private:
   // 在 create order by stmt 之前提取的  select clause 后的 field_expr (非a gg_expr 中的)和 agg_expr
   std::vector<std::unique_ptr<Expression>> exprs_;
 };
+
+class EmptyTuple : public Tuple 
+{
+public:
+  EmptyTuple() = default;
+  virtual ~EmptyTuple() = default;
+
+  int cell_num() const { return 0; }
+
+  RC cell_at(int index, Value &cell) const { return RC::INVALID_ARGUMENT; }
+
+  RC spec_at(int index, TupleCellSpec &spec) const { return RC::INVALID_ARGUMENT; }
+
+  RC find_cell(const TupleCellSpec &spec, Value &cell,int &index) const { return RC::INVALID_ARGUMENT; }
+
+  int get_tuple_size() const override
+  {
+    return 0;
+  }
+  RC get_tuple_rid(int tuple_idx, const BaseTable *&table, RID &rid) const override
+  {
+    return RC::INVALID_ARGUMENT;
+  }
+};

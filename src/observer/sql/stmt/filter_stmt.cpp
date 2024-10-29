@@ -35,7 +35,7 @@ int FilterStmt::implicit_cast_cost(AttrType from, AttrType to)
   return DataType::type_instance(from)->cast_cost(to);
 }
 
-RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC FilterStmt::create(Db *db, BaseTable *default_table, std::unordered_map<std::string, BaseTable *> *tables,
       Expression *condition, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
@@ -127,7 +127,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
         LOG_WARN("no field name");
         return RC::SCHEMA_FIELD_NOT_EXIST;
       }
-      Table* table = tables->find(table_name)->second;
+      BaseTable* table = tables->find(table_name)->second;
       if(table == nullptr){
         LOG_WARN("no such table");
         return RC::SCHEMA_TABLE_NOT_EXIST;

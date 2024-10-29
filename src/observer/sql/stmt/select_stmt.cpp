@@ -37,7 +37,7 @@ SelectStmt::~SelectStmt()
 }
 
 RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, 
-  const std::unordered_map<std::string, Table *> &parent_table_map)
+  const std::unordered_map<std::string, BaseTable *> &parent_table_map)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -47,14 +47,14 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
   BinderContext binder_context;
 
   // collect tables in `from` statement
-  vector<Table *>                tables;
-  unordered_map<string, Table *> table_map = parent_table_map; //直接赋值，后面别名重复时覆盖，以当前作用域为主
+  vector<BaseTable *>                tables;
+  unordered_map<string, BaseTable *> table_map = parent_table_map; //直接赋值，后面别名重复时覆盖，以当前作用域为主
   vector<JoinTables> join_tables;
 
   //建立查询中涉及到的表的信息
   for (auto &relation : select_sql.relations) {
     if(table_map.find(relation.base_relation.first) == table_map.end()){
-      Table *table = db->find_table(relation.base_relation.first.c_str());
+      BaseTable *table = db->find_base_table(relation.base_relation.first.c_str());
       if (nullptr == table) {
         LOG_WARN("no such table: %s", relation.base_relation.first.c_str());
         return RC::SCHEMA_TABLE_NOT_EXIST;
@@ -79,7 +79,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
       if(table_map.find(join_relations[j].first) != table_map.end()){
         continue;
       }
-      Table *table = db->find_table(join_relations[j].first.c_str());
+      BaseTable *table = db->find_base_table(join_relations[j].first.c_str());
       if (nullptr == table) {
         LOG_WARN("no such table: %s", join_relations[j].first.c_str());
         return RC::SCHEMA_TABLE_NOT_EXIST;
@@ -151,7 +151,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
     }
   }
 
-  Table *default_table = nullptr;
+  BaseTable *default_table = nullptr;
   if (tables.size() == 1) {
     default_table = tables[0];
   }

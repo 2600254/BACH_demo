@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "common/type/attr_type.h"
 
+class View;
 class Stmt;
 class CalcStmt;
 class SelectStmt;
