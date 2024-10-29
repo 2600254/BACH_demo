@@ -152,6 +152,7 @@ bool exp2value(Expression *exp, Value &value){
         ASC
         NULL_T
         IS
+        HAVING
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -210,6 +211,7 @@ bool exp2value(Expression *exp, Value &value){
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <expression_list>     group_by
+%type <expression>          having
 %type <update_kv_list>      update_kv_list
 %type <update_kv>           update_kv
 %type <orderby_unit>        sort_unit
@@ -711,7 +713,7 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->calc.expressions.swap(*$2);
       delete $2;
     }
-    | SELECT expression_list FROM from_node from_list where group_by opt_order_by
+    | SELECT expression_list FROM from_node from_list where group_by having opt_order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -735,9 +737,14 @@ select_stmt:        /*  select 语句的语法解析树*/
         std::reverse($$->selection.group_by.begin(), $$->selection.group_by.end());
       }
 
+      $$->selection.having_conditions = nullptr;
       if ($8 != nullptr) {
-        $$->selection.orderbys.swap(*$8);
-        delete $8;
+        $$->selection.having_conditions = $8;
+      }
+
+      if ($9 != nullptr) {
+        $$->selection.orderbys.swap(*$9);
+        delete $9;
       }
 
       delete $4;
@@ -911,6 +918,16 @@ group_by:
       $$ = $3;
     }
     ;
+
+having:
+    {
+      $$ = nullptr;
+    } 
+    | HAVING condition {
+      $$ = $2;
+    }
+    ;
+
 
 sort_unit:
 	expression

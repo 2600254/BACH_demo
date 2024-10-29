@@ -79,9 +79,9 @@ enum CompOp
  */
 struct InnerJoinSqlNode
 {
-  std::pair<std::string, std::string> base_relation; // 带别名， first为原名 second为别名
-  std::vector<std::pair<std::string, std::string>> join_relations; //同上
-  std::vector<Expression*> conditions;
+  std::pair<std::string, std::string>              base_relation;   // 带别名， first为原名 second为别名
+  std::vector<std::pair<std::string, std::string>> join_relations;  // 同上
+  std::vector<Expression *>                        conditions;
 };
 
 /**
@@ -102,6 +102,7 @@ struct SelectSqlNode
   Expression                   *conditions = nullptr;  ///< 查询条件，使用AND串联起来多个条件
   std::vector<Expression *>     group_by;              ///< group by clause
   std::vector<OrderBySqlNode>   orderbys;              ///< attributes in order clause
+  Expression                   *having_conditions = nullptr;
 };
 
 /**
@@ -150,7 +151,7 @@ struct UpdateSqlNode
   std::string               relation_name;  ///< Relation to update
   std::vector<std::string>  attribute_names;
   std::vector<Expression *> expressions;
-  Expression               *conditions  = nullptr;  ///< 更新条件
+  Expression               *conditions = nullptr;  ///< 更新条件
 };
 
 /**

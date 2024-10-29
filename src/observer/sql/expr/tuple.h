@@ -382,6 +382,7 @@ public:
     for (int i = 0; i < size; i++) {
       if (specs_[i].equals(spec)) {
         cell = cells_[i];
+        index = i;
         return RC::SUCCESS;
       }
     }

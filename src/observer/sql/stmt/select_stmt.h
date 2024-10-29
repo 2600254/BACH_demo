@@ -34,28 +34,29 @@ class Table;
 class SelectStmt : public Stmt
 {
 public:
-  class JoinTables {
+  class JoinTables
+  {
   public:
-    JoinTables() = default;
+    JoinTables()  = default;
     ~JoinTables() = default;
-    JoinTables(JoinTables&& other) {
+    JoinTables(JoinTables &&other)
+    {
       join_tables_.swap(other.join_tables_);
       on_conds_.swap(other.on_conds_);
     }
-    void push_join_table(Table* table, FilterStmt* fu) {
+    void push_join_table(Table *table, FilterStmt *fu)
+    {
       join_tables_.emplace_back(table);
       on_conds_.emplace_back(fu);
     }
-    const std::vector<Table*>& join_tables() const {
-      return join_tables_;
-    }
-    const std::vector<FilterStmt*>& on_conds() const {
-      return on_conds_;
-    }
+    const std::vector<Table *>      &join_tables() const { return join_tables_; }
+    const std::vector<FilterStmt *> &on_conds() const { return on_conds_; }
+
   private:
-    std::vector<Table*> join_tables_;
-    std::vector<FilterStmt*> on_conds_;
+    std::vector<Table *>      join_tables_;
+    std::vector<FilterStmt *> on_conds_;
   };
+
 public:
   SelectStmt() = default;
   ~SelectStmt() override;
@@ -63,23 +64,25 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, Table *> &parent_table_map = {});
+  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
+      const std::unordered_map<std::string, Table *> &parent_table_map = {});
 
 public:
-  const std::vector<JoinTables> &join_tables() const
-  {
-    return join_tables_;
-  }
-  FilterStmt                 *filter_stmt() const { return filter_stmt_; }
+  const std::vector<JoinTables> &join_tables() const { return join_tables_; }
+  FilterStmt                    *filter_stmt() const { return filter_stmt_; }
 
   std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
   std::vector<std::unique_ptr<Expression>> &group_by() { return group_by_; }
-  OrderByStmt *orderby_stmt() const{ return orderby_stmt_;}
+  std::vector<std::unique_ptr<Expression>> &having_expressions() { return having_expressions_; }
+  OrderByStmt                              *orderby_stmt() const { return orderby_stmt_; }
+  FilterStmt                               *having_stmt() const { return having_stmt_; }
 
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
   std::vector<JoinTables>                  join_tables_;
-  FilterStmt                               *filter_stmt_ = nullptr;
+  FilterStmt                              *filter_stmt_  = nullptr;
+  FilterStmt                              *having_stmt_  = nullptr;
   OrderByStmt                             *orderby_stmt_ = nullptr;
+  std::vector<std::unique_ptr<Expression>> having_expressions_;
   std::vector<std::unique_ptr<Expression>> group_by_;
 };
