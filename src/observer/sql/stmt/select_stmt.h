@@ -73,7 +73,7 @@ public:
 
   std::vector<std::unique_ptr<Expression>> &query_expressions() { return query_expressions_; }
   std::vector<std::unique_ptr<Expression>> &group_by() { return group_by_; }
-  std::vector<std::unique_ptr<Expression>> &having_expressions() { return having_expressions_; }
+  std::vector<std::unique_ptr<Expression>> &ex_agg_expressions() { return ex_agg_expressions_; }
   OrderByStmt                              *orderby_stmt() const { return orderby_stmt_; }
   FilterStmt                               *having_stmt() const { return having_stmt_; }
 
@@ -83,6 +83,6 @@ private:
   FilterStmt                              *filter_stmt_  = nullptr;
   FilterStmt                              *having_stmt_  = nullptr;
   OrderByStmt                             *orderby_stmt_ = nullptr;
-  std::vector<std::unique_ptr<Expression>> having_expressions_;
   std::vector<std::unique_ptr<Expression>> group_by_;
+  std::vector<std::unique_ptr<Expression>> ex_agg_expressions_;
 };

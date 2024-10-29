@@ -232,7 +232,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
   // 生成子查询的logical oper
   auto process_sub_query = [](Expression *expr) {
     if (expr->type() == ExprType::SUBQUERY) {
-      SubQueryExpr *sub_query_expr = static_cast<SubQueryExpr *>(expr); 
+      SubQueryExpr *sub_query_expr = static_cast<SubQueryExpr *>(expr);
       return sub_query_expr->generate_logical_oper();
     }
     return RC::SUCCESS;
@@ -357,7 +357,8 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
 {
   vector<unique_ptr<Expression>> &group_by_expressions = select_stmt->group_by();
   vector<Expression *>            aggregate_expressions;
-  vector<unique_ptr<Expression>> &query_expressions = select_stmt->query_expressions();
+  vector<unique_ptr<Expression>> &query_expressions  = select_stmt->query_expressions();
+  vector<unique_ptr<Expression>> &ex_agg_expressions = select_stmt->ex_agg_expressions();
 
   // 将聚合函数收集到aggregate_expressions中
   function<RC(std::unique_ptr<Expression> &)> collector = [&](unique_ptr<Expression> &expr) -> RC {
@@ -400,7 +401,14 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
     }
     return rc;
   };
+  // collect all aggregate expressions
+  for (unique_ptr<Expression> &expression : query_expressions) {
+    collector(expression);
+  }
 
+  for (unique_ptr<Expression> &expression : ex_agg_expressions) {
+    collector(expression);
+  }
 
   for (unique_ptr<Expression> &expression : query_expressions) {
     bind_group_by_expr(expression);
@@ -408,10 +416,6 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
 
   for (unique_ptr<Expression> &expression : query_expressions) {
     find_unbound_column(expression);
-  }
-  // collect all aggregate expressions
-  for (unique_ptr<Expression> &expression : query_expressions) {
-    collector(expression);
   }
 
   if (group_by_expressions.empty() && aggregate_expressions.empty()) {
@@ -425,7 +429,6 @@ RC LogicalPlanGenerator::create_group_by_plan(SelectStmt *select_stmt, unique_pt
   }
 
   // 如果只需要聚合，但是没有group by 语句，需要生成一个空的group by 语句
-
   auto group_by_oper =
       make_unique<GroupByLogicalOperator>(std::move(group_by_expressions), std::move(aggregate_expressions));
   logical_operator = std::move(group_by_oper);

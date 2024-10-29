@@ -215,10 +215,30 @@ RC SelectStmt::create(
     }
   }
 
+  vector<unique_ptr<Expression>> expr_for_having;
   if (select_sql.having_conditions != nullptr) {
+    auto collect_aggr_exprs = [&expr_for_having](Expression *expr) {
+      if (expr->type() == ExprType::AGGREGATION) {
+        expr_for_having.emplace_back(
+            static_cast<AggregateExpr *>(static_cast<AggregateExpr *>(expr)->deep_copy().release()));
+      }
+    };
+
     rc = expression_binder.bind_expression(select_sql.having_conditions, having_expressions);
     if (rc != RC::SUCCESS) {
       LOG_INFO("bind expression failed. rc=%s", strrc(rc));
+      return rc;
+    }
+    RC rc =
+        FilterStmt::create(db, default_table, &table_map, std::move(having_expressions[0].get()), having_filter_stmt);
+
+    for (auto &project : having_expressions) {
+      project->traverse(collect_aggr_exprs);
+    }
+
+    having_expressions[0].release();
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct having filter stmt");
       return rc;
     }
   }
@@ -231,20 +251,9 @@ RC SelectStmt::create(
   select_stmt->filter_stmt_  = filter_stmt;
   select_stmt->orderby_stmt_ = orderby_stmt;
   select_stmt->group_by_.swap(group_by_expressions);
-  
-
-  if (select_sql.having_conditions != nullptr) {
-    RC rc = FilterStmt::create(
-        db, default_table, &table_map, std::move(having_expressions[0].get()), having_filter_stmt);
-    having_expressions[0].release();
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot construct having filter stmt");
-      return rc;
-    }
-  }
-
   select_stmt->having_stmt_ = having_filter_stmt;
-
+  select_stmt->ex_agg_expressions_.swap(expr_for_having);
+  
   stmt = select_stmt;
   return RC::SUCCESS;
 }
