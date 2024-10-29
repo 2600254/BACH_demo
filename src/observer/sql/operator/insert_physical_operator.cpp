@@ -25,21 +25,6 @@ InsertPhysicalOperator::InsertPhysicalOperator(BaseTable *base_table, vector<Val
     : base_table_(base_table), values_(std::move(values))
 {}
 
-// RC InsertPhysicalOperator::open(Trx *trx)
-// {
-//   Record record;
-//   RC     rc = table_->make_record(static_cast<int>(values_.size()), values_.data(), record);
-//   if (rc != RC::SUCCESS) {
-//     LOG_WARN("failed to make record. rc=%s", strrc(rc));
-//     return rc;
-//   }
-
-//   rc = trx->insert_record(table_, record);
-//   if (rc != RC::SUCCESS) {
-//     LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
-//   }
-//   return rc;
-// }
 RC InsertPhysicalOperator::open(Trx *trx)
 {
   RC rc = RC::SUCCESS;

@@ -111,11 +111,14 @@ RC MaxAggregator::evaluate(Value &result)
 
 RC CountAggregator::accumulate(const Value &value)
 {
+  LOG_INFO("value: %s", value.to_string().c_str());
+  LOG_INFO("value type: %s", attr_type_to_string(value.attr_type()));
   if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
     value_ = value;
     if (!value_.is_null()) {
       Value::add(count_, Value(1), count_);
     }
+    LOG_INFO("count_: %s", count_.to_string().c_str());
     return RC::SUCCESS;
   }
   if (value.is_null()) {
