@@ -283,6 +283,20 @@ RC ComparisonExpr::try_get_value(Value &cell) const
   return RC::INVALID_ARGUMENT;
 }
 
+int implicit_cast_cost(AttrType from, AttrType to)
+{
+  if (from == to) {
+    return 0;
+  }
+  if (from == AttrType::NULLS || to == AttrType::NULLS){
+    return 0;
+  }
+  if(from == AttrType::FLOATS && to == AttrType::INTS){
+    return INT32_MAX;
+  }
+  return DataType::type_instance(from)->cast_cost(to);
+}
+
 RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
 {
   Value left_value;
@@ -361,6 +375,30 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
       return rc;
+    }
+    if(left_value.attr_type() != right_value.attr_type()){
+      //如果左右类型不一致尝试转成一样的类型
+      auto left_to_right_cost = implicit_cast_cost(left_value.attr_type(), right_value.attr_type());
+      auto right_to_left_cost = implicit_cast_cost(right_value.attr_type(), left_value.attr_type());
+      if(left_to_right_cost <= right_to_left_cost){
+        //左边转成右边的类型
+        Value cast_value;
+        rc = Value::cast_to(left_value, right_value.attr_type(), cast_value);
+        if(rc != RC::SUCCESS){
+          LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(left_value.attr_type()), attr_type_to_string(right_value.attr_type()));
+          return rc;
+        }
+        left_value = cast_value;
+      }else{
+        //右边转成左边的类型
+        Value cast_value;
+        rc = Value::cast_to(right_value, left_value.attr_type(), cast_value);
+        if(rc != RC::SUCCESS){
+          LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(right_value.attr_type()), attr_type_to_string(left_value.attr_type()));
+          return rc;
+        }
+        right_value = cast_value;
+      }
     }
     rc = compare_value(left_value, right_value, bool_value);
   }
