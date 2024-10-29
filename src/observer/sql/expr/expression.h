@@ -319,7 +319,15 @@ public:
 
   ExprType type() const {return ExprType::SUBQUERY;}
 
-  AttrType value_type() const {return AttrType::UNDEFINED;}
+  AttrType value_type() const {
+    if(is_single_value_){
+      return AttrType::FLOATS;
+    }
+    if(stmt_->query_expressions().size() == 1){
+      return stmt_->query_expressions()[0]->value_type();
+    }
+    return AttrType::UNDEFINED;
+  }
 
   RC generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables);
   RC generate_logical_oper();

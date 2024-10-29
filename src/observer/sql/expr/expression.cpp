@@ -296,6 +296,24 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     return RC::RECORD_EOF == rc ? RC::SUCCESS : rc;
   }
 
+  SubQueryExpr* left_subquery_expr = nullptr;
+  SubQueryExpr* right_subquery_expr = nullptr;
+  if(left_->type() == ExprType::SUBQUERY){
+    left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
+    if(!left_subquery_expr->has_opened()){
+      left_subquery_expr->open(nullptr);
+      left_subquery_expr->set_opened();
+    }
+  }
+
+  if(right_->type() == ExprType::SUBQUERY){
+    right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
+    if(!right_subquery_expr->has_opened()){
+      right_subquery_expr->open(nullptr);
+      right_subquery_expr->set_opened();
+    }
+  }
+
   if(comp_ == IN_OP || comp_ == NOT_IN_OP){
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
@@ -345,6 +363,14 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
       return rc;
     }
     rc = compare_value(left_value, right_value, bool_value);
+  }
+
+  if(left_subquery_expr != nullptr){
+    left_subquery_expr->close();
+  }
+
+  if(right_subquery_expr != nullptr){
+    right_subquery_expr->close();
   }
 
   if (rc == RC::SUCCESS) {
