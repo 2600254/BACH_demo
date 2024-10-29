@@ -57,3 +57,10 @@ INSERT INTO null_table4 VALUES (9, 9, 'N9');
 UPDATE null_table4 SET num=null where id=9;
 
 UPDATE null_table4 SET id=(SELECT null_table3.num from null_table3 where null_table3.id=4) where id=9;
+
+
+create table t_group_by (id int not null, score int not null, name char(1) null);
+insert into t_group_by values (5, 4, null);
+insert into t_group_by values (2, 2, null);
+
+select name, max(score) from t_group_by group by name;

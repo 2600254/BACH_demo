@@ -269,7 +269,12 @@ string Value::to_string() const
   return res;
 }
 
-int Value::compare(const Value &other) const { return DataType::type_instance(this->attr_type_)->compare(*this, other); }
+int Value::compare(const Value &other) const { 
+  if (this->is_null() || other.is_null()){
+    return  common::compare_null(this->is_null(), other.is_null());
+  }
+  return DataType::type_instance(this->attr_type_)->compare(*this, other); 
+}
 
 int Value::get_int() const
 {
