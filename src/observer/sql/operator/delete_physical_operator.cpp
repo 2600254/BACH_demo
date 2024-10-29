@@ -41,7 +41,7 @@ RC DeletePhysicalOperator::open(Trx *trx)
     rc = delete_from_view();
   }
 
-  return rc;
+  return RC::SUCCESS;
 }
 
 RC DeletePhysicalOperator::delete_from_table()

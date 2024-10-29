@@ -35,7 +35,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     rc = find_target_view_columns();
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to find column info of view: %s", strrc(rc));
-     return rc;
+      return rc;
     }
   }
   trx_ = trx;
@@ -353,7 +353,8 @@ RC UpdatePhysicalOperator::construct_new_record(Table *table, Record &old_record
         }
         memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));       
       } else {
-        memcpy(tmp_record_data_ + field_meta.offset(), value->data(), field_meta.len());   
+        size_t copy_len = std::min(value->length()+1, field_meta.len());
+        memcpy(tmp_record_data_ + field_meta.offset(), value->data(), copy_len);   
       }
 
       if (old_null_bitmap.get_bit(field_idx)) {
