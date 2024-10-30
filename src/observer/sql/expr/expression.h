@@ -329,6 +329,8 @@ public:
     return AttrType::UNDEFINED;
   }
 
+  void set_parent_tuple(const Tuple &tuple);
+
   RC generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables);
   RC generate_logical_oper();
   RC generate_physical_oper();

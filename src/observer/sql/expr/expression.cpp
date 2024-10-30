@@ -122,6 +122,7 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
   if(child_->type() == ExprType::SUBQUERY){
     SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(child_.get());
     if(!subquery_expr->has_opened()){
+      subquery_expr->set_parent_tuple(tuple);
       subquery_expr->open(nullptr);
       subquery_expr->set_opened();
     }
@@ -315,6 +316,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
   if(left_->type() == ExprType::SUBQUERY){
     left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
     if(!left_subquery_expr->has_opened()){
+      left_subquery_expr->set_parent_tuple(tuple);
       left_subquery_expr->open(nullptr);
       left_subquery_expr->set_opened();
     }
@@ -323,6 +325,7 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
   if(right_->type() == ExprType::SUBQUERY){
     right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
     if(!right_subquery_expr->has_opened()){
+      right_subquery_expr->set_parent_tuple(tuple);
       right_subquery_expr->open(nullptr);
       right_subquery_expr->set_opened();
     }
@@ -875,7 +878,7 @@ bool SubQueryExpr::has_more_row(const Tuple &tuple) const
 }
 
 RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
-  physical_oper_->set_parent_tuple(&tuple);
+  // physical_oper_->set_parent_tuple(&tuple);  //在physical_oper_->open()阶段已经设置，不需要重复设置
   // 每次返回一行的第一个 cell
   RC rc = physical_oper_->next();
   if (RC::SUCCESS != rc) {
@@ -885,7 +888,14 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
   return physical_oper_->current_tuple()->cell_at(0, value);
 }
 
-RC SubQueryExpr::open(Trx* trx) {return physical_oper_->open(trx);}
+RC SubQueryExpr::open(Trx* trx) {
+  return physical_oper_->open(trx);
+  is_open_ = true;
+}
+
+void SubQueryExpr::set_parent_tuple(const Tuple &tuple) {
+  physical_oper_->set_parent_tuple(&tuple);
+}
 
 RC SubQueryExpr::close() {
   is_open_ = false;
