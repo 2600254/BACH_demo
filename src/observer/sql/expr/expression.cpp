@@ -411,28 +411,32 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     //如果不是in/not in,那么每次比较两侧都仅有一个值
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-      return RC::INVALID_ARGUMENT;
+      // LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
+      // return rc;
+      value.set_boolean(false);
+      return RC::SUCCESS;
     }
     rc = right_->get_value(tuple, right_value);
     if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-      return RC::INVALID_ARGUMENT;
+      // LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
+      // return rc;
+      value.set_boolean(false);
+      return RC::SUCCESS;
     }
     if(left_->type() == ExprType::SUBQUERY && !left_subquery_expr->is_single_value()){
       // 如果左侧是子查询且不是单一值类型，需要判断是否有多个值
       Value left_value_tmp;
       if(left_->get_value(tuple, left_value_tmp) != RC::RECORD_EOF){
-        LOG_ERROR("subquery should return only one value");
-        return RC::INVALID_ARGUMENT;
+        value.set_boolean(false);
+        return RC::SUCCESS;
       }
     }
     if(right_->type() == ExprType::SUBQUERY && !right_subquery_expr->is_single_value()){
       // 如果右侧是子查询且不是单一值类型，需要判断是否有多个值
       Value right_value_tmp;
       if(right_->get_value(tuple, right_value_tmp) != RC::RECORD_EOF){
-        LOG_ERROR("subquery should return only one value");
-        return RC::INVALID_ARGUMENT;
+        value.set_boolean(false);
+        return RC::SUCCESS;
       }
     }
     
