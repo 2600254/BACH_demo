@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 #include <iomanip>
 #include "common/lang/string.h"
+#include "common/lang/defer.h"
 #include "sql/expr/arithmetic_operator.hpp"
 #include "sql/optimizer/logical_plan_generator.h"
 #include "sql/optimizer/physical_plan_generator.h"
@@ -124,7 +125,6 @@ RC CastExpr::get_value(const Tuple &tuple, Value &result)
     if(!subquery_expr->has_opened()){
       subquery_expr->set_parent_tuple(tuple);
       subquery_expr->open(nullptr);
-      subquery_expr->set_opened();
     }
     rc = subquery_expr->get_value(tuple, value);
     if (rc != RC::SUCCESS) {
@@ -313,21 +313,37 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
 
   SubQueryExpr* left_subquery_expr = nullptr;
   SubQueryExpr* right_subquery_expr = nullptr;
+
+  // 用于关闭子查询
+  DEFER([&left_subquery_expr, &right_subquery_expr]() {
+    if (left_subquery_expr != nullptr) {
+      left_subquery_expr->close();
+    }
+    if (right_subquery_expr != nullptr) {
+      right_subquery_expr->close();
+    }
+  });
+
+  LOG_INFO("left type: %d", left_->type());
   if(left_->type() == ExprType::SUBQUERY){
     left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
     if(!left_subquery_expr->has_opened()){
       left_subquery_expr->set_parent_tuple(tuple);
-      left_subquery_expr->open(nullptr);
-      left_subquery_expr->set_opened();
+      rc = left_subquery_expr->open(nullptr);
+      if(OB_FAIL(rc)){
+        return rc;
+      }
     }
   }
-
+  LOG_INFO("right type: %d", right_->type());
   if(right_->type() == ExprType::SUBQUERY){
     right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
     if(!right_subquery_expr->has_opened()){
       right_subquery_expr->set_parent_tuple(tuple);
-      right_subquery_expr->open(nullptr);
-      right_subquery_expr->set_opened();
+      rc = right_subquery_expr->open(nullptr);
+      if(OB_FAIL(rc)){
+        return rc;
+      }
     }
   }
 
@@ -396,13 +412,30 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-      return rc;
+      return RC::INVALID_ARGUMENT;
     }
     rc = right_->get_value(tuple, right_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-      return rc;
+      return RC::INVALID_ARGUMENT;
     }
+    if(left_->type() == ExprType::SUBQUERY && !left_subquery_expr->is_single_value()){
+      // 如果左侧是子查询且不是单一值类型，需要判断是否有多个值
+      Value left_value_tmp;
+      if(left_->get_value(tuple, left_value_tmp) != RC::RECORD_EOF){
+        LOG_ERROR("subquery should return only one value");
+        return RC::INVALID_ARGUMENT;
+      }
+    }
+    if(right_->type() == ExprType::SUBQUERY && !right_subquery_expr->is_single_value()){
+      // 如果右侧是子查询且不是单一值类型，需要判断是否有多个值
+      Value right_value_tmp;
+      if(right_->get_value(tuple, right_value_tmp) != RC::RECORD_EOF){
+        LOG_ERROR("subquery should return only one value");
+        return RC::INVALID_ARGUMENT;
+      }
+    }
+    
     if(left_value.attr_type() != right_value.attr_type()){
       //如果左右类型不一致尝试转成一样的类型
       auto left_to_right_cost = implicit_cast_cost(left_value.attr_type(), right_value.attr_type());
@@ -433,7 +466,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
   if(left_subquery_expr != nullptr){
     left_subquery_expr->close();
   }
-
   if(right_subquery_expr != nullptr){
     right_subquery_expr->close();
   }
@@ -880,7 +912,14 @@ bool SubQueryExpr::has_more_row(const Tuple &tuple) const
 RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
   // physical_oper_->set_parent_tuple(&tuple);  //在physical_oper_->open()阶段已经设置，不需要重复设置
   // 每次返回一行的第一个 cell
-  RC rc = physical_oper_->next();
+  RC rc = RC::SUCCESS;
+  if(!is_open_){
+    rc = open(nullptr);
+    if(OB_FAIL(rc)){
+      return rc;
+    }
+  }
+  rc = physical_oper_->next();
   if (RC::SUCCESS != rc) {
     close();
     return rc;
@@ -889,8 +928,10 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
 }
 
 RC SubQueryExpr::open(Trx* trx) {
-  return physical_oper_->open(trx);
   is_open_ = true;
+  LOG_INFO("sub query open");
+  return physical_oper_->open(trx);
+  
 }
 
 void SubQueryExpr::set_parent_tuple(const Tuple &tuple) {
@@ -899,6 +940,7 @@ void SubQueryExpr::set_parent_tuple(const Tuple &tuple) {
 
 RC SubQueryExpr::close() {
   is_open_ = false;
+  LOG_INFO("sub query close");
   return physical_oper_->close();
 }
 

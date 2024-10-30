@@ -343,10 +343,6 @@ public:
     return is_single_value_;
   }
 
-  void set_opened(){
-    is_open_ = true;
-  }
-
   CompOp comp() const {return comp_;}
 
   void set_comp(CompOp comp) {comp_ = comp;}

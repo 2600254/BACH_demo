@@ -812,6 +812,7 @@ RC RecordFileScanner::fetch_next_record()
 RC RecordFileScanner::fetch_next_record_in_page()
 {
   RC rc = RC::SUCCESS;
+  LOG_INFO("fetch table name: %s", table_ == nullptr ? "unknown" : table_->name());
   while (record_page_iterator_.has_next()) {
     rc = record_page_iterator_.next(next_record_);
     if (rc != RC::SUCCESS) {
@@ -847,6 +848,7 @@ RC RecordFileScanner::fetch_next_record_in_page()
 
 RC RecordFileScanner::close_scan()
 {
+  LOG_INFO("close %s record file scanner.", table_ == nullptr ? "unknown" : table_->name());
   if (disk_buffer_pool_ != nullptr) {
     disk_buffer_pool_ = nullptr;
   }
