@@ -355,6 +355,30 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     }
     bool res = false; // 有一样的值
     while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
+      if(left_value.attr_type() != right_value.attr_type()){
+        //如果左右类型不一致尝试转成一样的类型
+        auto left_to_right_cost = implicit_cast_cost(left_value.attr_type(), right_value.attr_type());
+        auto right_to_left_cost = implicit_cast_cost(right_value.attr_type(), left_value.attr_type());
+        if(left_to_right_cost <= right_to_left_cost){
+          //左边转成右边的类型
+          Value cast_value;
+          rc = Value::cast_to(left_value, right_value.attr_type(), cast_value);
+          if(rc != RC::SUCCESS){
+            LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(left_value.attr_type()), attr_type_to_string(right_value.attr_type()));
+            return rc;
+          }
+          left_value = cast_value;
+        }else{
+          //右边转成左边的类型
+          Value cast_value;
+          rc = Value::cast_to(right_value, left_value.attr_type(), cast_value);
+          if(rc != RC::SUCCESS){
+            LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(right_value.attr_type()), attr_type_to_string(left_value.attr_type()));
+            return rc;
+          }
+          right_value = cast_value;
+        }
+      }
       if(left_value.compare(right_value) == 0) {
         res = true;
       }
