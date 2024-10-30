@@ -231,7 +231,6 @@ public:
       LOG_WARN("invalid argument. index=%d", index);
       return RC::INVALID_ARGUMENT;
     }
-    LOG_INFO("bitmap_.get_bit(index): %d", bitmap_.get_bit(index));
     if (bitmap_.get_bit(index)) {
       cell.set_null();
     } else {

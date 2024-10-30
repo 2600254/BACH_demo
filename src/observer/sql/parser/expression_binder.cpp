@@ -194,6 +194,7 @@ RC ExpressionBinder::bind_field_expression(
   BaseTable* table;
   FieldExpr *fep = static_cast<FieldExpr *>(field_expr);
   std::string now_table_name = fep->table_name();
+  LOG_INFO("now_table_name: %s", now_table_name.c_str());
   if (now_table_name.size() == 0) {
     if (context_.query_tables().size() == 0) {
       LOG_INFO("cannot determine table for field: %s", fep->field_name());
@@ -208,6 +209,10 @@ RC ExpressionBinder::bind_field_expression(
     }
   }
   const TableMeta &table_meta = table->table_meta();
+  LOG_INFO("field_name: %s", fep->field_name());
+  for (int i = 0; i < table_meta.field_num(); i++) {
+    LOG_INFO("field_name%i: %s", i, table_meta.field(i)->name());
+  }
   const FieldMeta *field_meta = table_meta.field(fep->field_name());
 
   if (nullptr == field_meta) {
