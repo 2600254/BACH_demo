@@ -53,26 +53,26 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
 
   //建立查询中涉及到的表的信息
   for (auto &relation : select_sql.relations) {
-    if(table_map.find(relation.base_relation.first) == table_map.end()){
-      BaseTable *table = db->find_base_table(relation.base_relation.first.c_str());
-      if (nullptr == table) {
-        LOG_WARN("no such table: %s", relation.base_relation.first.c_str());
-        return RC::SCHEMA_TABLE_NOT_EXIST;
-      }
-      tables.push_back(table);
-      // table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
-      // binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
-      binder_context.add_table(relation.base_relation.first, table);
-      table_map[relation.base_relation.first] = table;
-      if(relation.base_relation.second.size() > 0){
-        //如果有别名，也放入map中
-        table_map[relation.base_relation.second] = table;
-        if(!binder_context.add_table(relation.base_relation.second, table)){
-          LOG_WARN("table alias %s already exists", relation.base_relation.second.c_str());
-          return RC::INVALID_ARGUMENT;
-        }
+    // if(table_map.find(relation.base_relation.first) == table_map.end()){
+    BaseTable *table = db->find_base_table(relation.base_relation.first.c_str());
+    if (nullptr == table) {
+      LOG_WARN("no such table: %s", relation.base_relation.first.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    tables.push_back(table);
+    // table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
+    // binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
+    binder_context.add_table(relation.base_relation.first, table);
+    table_map[relation.base_relation.first] = table;
+    if(relation.base_relation.second.size() > 0){
+      //如果有别名，也放入map中
+      table_map[relation.base_relation.second] = table;
+      if(!binder_context.add_table(relation.base_relation.second, table)){
+        LOG_WARN("table alias %s already exists", relation.base_relation.second.c_str());
+        return RC::INVALID_ARGUMENT;
       }
     }
+    // }
     
     const std::vector<pair<string, string>>& join_relations = relation.join_relations;
     for (size_t j = 0; j < join_relations.size(); ++j) {

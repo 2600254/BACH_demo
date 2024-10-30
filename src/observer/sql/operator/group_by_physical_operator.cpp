@@ -37,6 +37,7 @@ void GroupByPhysicalOperator::create_aggregator_list(AggregatorList &aggregator_
 {
   aggregator_list.clear();
   aggregator_list.reserve(aggregate_expressions_.size());
+  LOG_INFO("GroupByPhysicalOperator:aggregate_expressions_.size(): %d", aggregate_expressions_.size());
   ranges::for_each(aggregate_expressions_, [&aggregator_list](Expression *expr) {
     auto *aggregate_expr = static_cast<AggregateExpr *>(expr);
     aggregator_list.emplace_back(aggregate_expr->create_aggregator());
@@ -52,6 +53,7 @@ RC GroupByPhysicalOperator::aggregate(AggregatorList &aggregator_list, const Tup
   RC        rc = RC::SUCCESS;
   Value     value;
   const int size = static_cast<int>(aggregator_list.size());
+  LOG_INFO("aggregator_list size: %d", size);
   for (int i = 0; i < size; i++) {
     Aggregator *aggregator = aggregator_list[i].get();
 
@@ -85,9 +87,11 @@ RC GroupByPhysicalOperator::evaluate(GroupValueType &group_value)
 
   ValueListTuple evaluated_tuple;
   vector<Value>  values;
+  LOG_INFO("GroupByPhysicalOperator:aggregators.size(): %d", aggregators.size());
   for (unique_ptr<Aggregator> &aggregator : aggregators) {
     Value value;
     rc = aggregator->evaluate(value);
+    LOG_INFO("GroupByPhysicalOperator:value: %s", value.to_string().c_str());
     if (OB_FAIL(rc)) {
       LOG_WARN("failed to evaluate aggregator. rc=%s", strrc(rc));
       return rc;

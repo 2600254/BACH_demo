@@ -701,7 +701,8 @@ public:
 
   std::unique_ptr<Expression> deep_copy() const override
   {
-    LOG_ERROR("RC::UNIMPLEMENTED UnboundAggregateExpr deep_copy");
+    std::unique_ptr<Expression> new_child = child_ ->deep_copy();
+    auto new_expr = std::make_unique<UnboundAggregateExpr>(aggregate_name_.c_str(), std::move(new_child));
     return nullptr;
   }
 
@@ -761,7 +762,6 @@ public:
     }
   }
 
-  
   RC traverse_check(const std::function<RC(Expression*)>& check_func) override
   {
     RC rc = RC::SUCCESS;
@@ -772,7 +772,6 @@ public:
     }
     return rc;
   }
-
 
 public:
   static RC type_from_string(const char *type_str, Type &type);
@@ -829,6 +828,18 @@ public:
       }
       func(this);
     }
+  }
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    std::vector<std::unique_ptr<Expression>> new_children;
+    for (auto& expr : exprs_) {
+      new_children.emplace_back(expr->deep_copy());
+    }
+    auto new_expr = std::make_unique<ExprListExpr>(std::move(new_children));
+    new_expr->set_name(name());
+    new_expr->set_alias(alias());
+    return new_expr;
   }
 
 private:
