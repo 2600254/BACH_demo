@@ -84,7 +84,7 @@ RC UpdatePhysicalOperator::find_target_columns()
       if (raw_value.is_null() && field_meta->nullable()){
 
       } else if (raw_value.attr_type() != field_meta->type()){
-        if (AttrType::TEXTS == field_meta->type() && AttrType::CHARS!= raw_value.attr_type()){
+        if (AttrType::TEXTS == field_meta->type() && AttrType::CHARS == raw_value.attr_type()){
         } else if (Value::cast_to(raw_value, field_meta->type(), raw_value) != RC::SUCCESS){
           LOG_WARN("failed to cast value: %s", strrc(rc));
           invalid_ = true;
