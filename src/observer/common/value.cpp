@@ -98,7 +98,7 @@ void Value::reset()
   switch (attr_type_) {
     case AttrType::CHARS:
       if (own_data_ && value_.pointer_value_ != nullptr) {
-        delete[] value_.pointer_value_;
+        // delete[] value_.pointer_value_;
         value_.pointer_value_ = nullptr;
       }
       break;

@@ -64,3 +64,8 @@ insert into t_group_by values (5, 4, null);
 insert into t_group_by values (2, 2, null);
 
 select name, max(score) from t_group_by group by name;
+
+CREATE TABLE big_order_by_0(id int, num int, price float, addr char(10), birthday date);
+CREATE TABLE big_order_by_1(id int, num int, price float, addr char(10), birthday date);
+CREATE TABLE big_order_by_2(id int, num int, price float, addr char(10), birthday date);
+CREATE TABLE big_order_by_3(id int, num int, price float, addr char(10), birthday date);
