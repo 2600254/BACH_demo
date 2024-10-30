@@ -56,12 +56,12 @@ RC InsertPhysicalOperator::insert_into_table(Trx *trx)
   rc = trx->insert_record(table_, record);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to insert record by transaction. rc=%s", strrc(rc));
-    RC rc2 = RC::SUCCESS;
-    Record &done_rcd = record;
-    rc2 = trx->delete_record(table_, done_rcd);
-    if (RC::SUCCESS != rc2) {
-      LOG_WARN("failed to rollback record after insert failed. rc=%s", strrc(rc2));
-    }
+    // RC rc2 = RC::SUCCESS;
+    // Record &done_rcd = record;
+    // rc2 = trx->delete_record(table_, done_rcd);
+    // if (RC::SUCCESS != rc2) {
+    //   LOG_WARN("failed to rollback record after insert failed. rc=%s", strrc(rc2));
+    // }
   }
   return rc;
 }
