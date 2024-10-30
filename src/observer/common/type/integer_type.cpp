@@ -93,7 +93,12 @@ RC IntegerType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   if (type == AttrType::FLOATS) {
     result.set_float(val.get_int());
-  } else {
+  } else if (type == AttrType::CHARS) {
+    stringstream ss;
+    ss << val.value_.int_value_;
+    result.set_string(ss.str().c_str(), ss.str().length());
+  } 
+  else {
     return RC::UNSUPPORTED;
   }
   return RC::SUCCESS;

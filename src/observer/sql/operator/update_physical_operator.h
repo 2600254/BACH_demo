@@ -73,6 +73,8 @@ private:
   std::vector<Value> raw_values_;
   std::vector<std::string> fields_;
 
+  // Tuple *current_tuple_ = nullptr;
+
   std::vector<int> fields_id_;
   std::vector<FieldMeta> fields_meta_;
   char *tmp_record_data_ = nullptr;   // 用于存放新的Record的data
