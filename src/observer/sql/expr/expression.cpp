@@ -971,6 +971,9 @@ RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::stri
       return RC::INVALID_ARGUMENT;
     }
   }
+  if(!is_single_value_ && comp_ == NOT_EQUAL){
+    return RC::INVALID_ARGUMENT;
+  }
   stmt_ = std::unique_ptr<SelectStmt>(ss);
   return RC::SUCCESS;
 }
