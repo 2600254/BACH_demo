@@ -30,17 +30,17 @@ using namespace std;
 RC FieldExpr::get_value(const Tuple &tuple, Value &value)
 {
   LOG_INFO("%s", tuple.to_string().c_str());
-  const char* table_name_str = table_name();
-  if(table_name_str == nullptr){
+  const char *table_name_str = table_name();
+  if (table_name_str == nullptr) {
     table_name_str = field_.table_name();
   }
   LOG_INFO("table_name: %s, field_name: %s", table_name_str, field_name());
-  if(is_first_){
-    bool & is_first_ref = const_cast<bool&>(is_first_);
-    is_first_ref = false;
-    return tuple.find_cell(TupleCellSpec(table_name_str, field_name()), value, const_cast<int&>(index_));
-  }else{
-    return tuple.cell_at(index_,value);
+  if (is_first_) {
+    bool &is_first_ref = const_cast<bool &>(is_first_);
+    is_first_ref       = false;
+    return tuple.find_cell(TupleCellSpec(table_name_str, field_name()), value, const_cast<int &>(index_));
+  } else {
+    return tuple.cell_at(index_, value);
   }
 }
 
@@ -53,10 +53,10 @@ bool FieldExpr::equal(const Expression &other) const
     return false;
   }
   const auto &other_field_expr = static_cast<const FieldExpr &>(other);
-  std::string this_table_name = std::string(table_name());
+  std::string this_table_name  = std::string(table_name());
   std::string other_table_name = std::string(other_field_expr.table_name());
-  std::string this_field_name = std::string(field_name());
-  std::string other_field_name = std::string(other_field_expr.field_name()); 
+  std::string this_field_name  = std::string(field_name());
+  std::string other_field_name = std::string(other_field_expr.field_name());
   return this_table_name == other_table_name && this_field_name == other_field_name;
 
   // return table_name() == other_field_expr.table_name() && field_name() == other_field_expr.field_name();
@@ -74,9 +74,7 @@ RC FieldExpr::get_column(Chunk &chunk, Column &column)
   return RC::SUCCESS;
 }
 
-
 /////////////////////////////////////////////////////////////////////////////////
-
 
 bool ValueExpr::equal(const Expression &other) const
 {
@@ -124,36 +122,11 @@ RC CastExpr::cast(const Value &value, Value &cast_value) const
 
 RC CastExpr::get_value(const Tuple &tuple, Value &result)
 {
-  Value value;
-  RC rc = RC::SUCCESS;
-  if(child_->type() == ExprType::SUBQUERY){
-    SubQueryExpr* subquery_expr = static_cast<SubQueryExpr *>(child_.get());
-    if(!subquery_expr->has_opened()){
-      subquery_expr->set_parent_tuple(tuple);
-      subquery_expr->open(nullptr);
-    }
-    rc = subquery_expr->get_value(tuple, value);
+    RC rc = child_->get_value(tuple, result);
     if (rc != RC::SUCCESS) {
       return rc;
     }
-    if(subquery_expr->is_single_value() 
-    || (subquery_expr->comp() >= EQUAL_TO && subquery_expr->comp() <= GREAT_THAN)){
-      // 如果是单值或者是比较操作符，子查询结束
-      Value test_value;
-      rc = subquery_expr->get_value(tuple, test_value);
-      if (rc == RC::SUCCESS) {
-        LOG_ERROR("subquery should return only one value");
-        return RC::INVALID_ARGUMENT;
-      }
-      subquery_expr->close();
-    }
-  }else{
-    rc = child_->get_value(tuple, value);
-    if (rc != RC::SUCCESS) {
-      return rc;
-    }
-  }
-  return cast(value, result);
+  return cast(result, result);
 }
 
 RC CastExpr::try_get_value(Value &result) const
@@ -193,20 +166,19 @@ ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_
     : comp_(comp), left_(std::move(left)), right_(std::move(right))
 {}
 
-ComparisonExpr::ComparisonExpr(CompOp comp, Expression* left, Expression* right)
+ComparisonExpr::ComparisonExpr(CompOp comp, Expression *left, Expression *right)
     : comp_(comp), left_(left), right_(right)
 {}
 
 ComparisonExpr::~ComparisonExpr() {}
 
-
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
-  RC rc = RC::SUCCESS;
+  RC  rc = RC::SUCCESS;
   int cmp_result;
 
   if (left.is_null() || right.is_null()) {
-    if (!(comp_ == IS_OP) && !(comp_ == IS_NOT_OP)){
+    if (!(comp_ == IS_OP) && !(comp_ == IS_NOT_OP)) {
       result = false;
       return rc;
     }
@@ -215,12 +187,11 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
         result = true;
         return rc;
       }
-      if (comp_ == IS_NOT_OP){
+      if (comp_ == IS_NOT_OP) {
         result = false;
         return rc;
       }
-    } 
-
+    }
   }
 
   if (comp_ != LIKE_OP && comp_ != NOT_LIKE_OP) {
@@ -258,7 +229,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
       break;
     }
     case IS_NOT_OP: {
-      result = (cmp_result!= 0);
+      result = (cmp_result != 0);
       break;
     }
     default: {
@@ -295,10 +266,10 @@ int implicit_cast_cost(AttrType from, AttrType to)
   if (from == to) {
     return 0;
   }
-  if (from == AttrType::NULLS || to == AttrType::NULLS){
+  if (from == AttrType::NULLS || to == AttrType::NULLS) {
     return 0;
   }
-  if(from == AttrType::FLOATS && to == AttrType::INTS){
+  if (from == AttrType::FLOATS && to == AttrType::INTS) {
     return INT32_MAX;
   }
   return DataType::type_instance(from)->cast_cost(to);
@@ -308,17 +279,17 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
 {
   Value left_value;
   Value right_value;
-  
+
   bool bool_value = false;
-  RC rc = RC::SUCCESS;
+  RC   rc         = RC::SUCCESS;
   if (comp_ == EXISTS_OP || comp_ == NOT_EXISTS_OP) {
     rc = right_->get_value(tuple, right_value);
     value.set_boolean(comp_ == EXISTS_OP ? rc == RC::SUCCESS : rc == RC::RECORD_EOF);
     return RC::RECORD_EOF == rc ? RC::SUCCESS : rc;
   }
 
-  SubQueryExpr* left_subquery_expr = nullptr;
-  SubQueryExpr* right_subquery_expr = nullptr;
+  SubQueryExpr *left_subquery_expr  = nullptr;
+  SubQueryExpr *right_subquery_expr = nullptr;
 
   // 用于关闭子查询
   DEFER([&left_subquery_expr, &right_subquery_expr]() {
@@ -331,139 +302,130 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
   });
 
   LOG_INFO("left type: %d", left_->type());
-  if(left_->type() == ExprType::SUBQUERY){
+  if (left_->type() == ExprType::SUBQUERY) {
     left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
-    if(!left_subquery_expr->has_opened()){
+    if (!left_subquery_expr->has_opened()) {
       left_subquery_expr->set_parent_tuple(tuple);
       rc = left_subquery_expr->open(nullptr);
-      if(OB_FAIL(rc)){
+      if (OB_FAIL(rc)) {
         return rc;
       }
     }
   }
   LOG_INFO("right type: %d", right_->type());
-  if(right_->type() == ExprType::SUBQUERY){
+  if (right_->type() == ExprType::SUBQUERY) {
     right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
-    if(!right_subquery_expr->has_opened()){
+    if (!right_subquery_expr->has_opened()) {
       right_subquery_expr->set_parent_tuple(tuple);
       rc = right_subquery_expr->open(nullptr);
-      if(OB_FAIL(rc)){
+      if (OB_FAIL(rc)) {
         return rc;
       }
     }
   }
 
-  if(comp_ == IN_OP || comp_ == NOT_IN_OP){
+  if (comp_ == IN_OP || comp_ == NOT_IN_OP) {
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
       return rc;
     }
-    //右侧如果是一个值list 比如 id in (1,2,3)
-    if(right_->type() == ExprType::EXPRLIST){
-      static_cast<ExprListExpr*>(right_.get())->reset();
+    // 右侧如果是一个值list 比如 id in (1,2,3)
+    if (right_->type() == ExprType::EXPRLIST) {
+      static_cast<ExprListExpr *>(right_.get())->reset();
     }
 
-    if(left_->type() == ExprType::CAST){
-      CastExpr* cast_expr = static_cast<CastExpr *>(left_.get());
-      if(cast_expr->child()->type() == ExprType::EXPRLIST){
-        ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+    if (left_->type() == ExprType::CAST) {
+      CastExpr *cast_expr = static_cast<CastExpr *>(left_.get());
+      if (cast_expr->child()->type() == ExprType::EXPRLIST) {
+        ExprListExpr *eler = static_cast<ExprListExpr *>(cast_expr->child().get());
         eler->reset();
       }
     }
-    if(right_->type() == ExprType::CAST){
-      CastExpr* cast_expr = static_cast<CastExpr *>(right_.get());
-      if(cast_expr->child()->type() == ExprType::EXPRLIST){
-        ExprListExpr* eler = static_cast<ExprListExpr *>(cast_expr->child().get());
+    if (right_->type() == ExprType::CAST) {
+      CastExpr *cast_expr = static_cast<CastExpr *>(right_.get());
+      if (cast_expr->child()->type() == ExprType::EXPRLIST) {
+        ExprListExpr *eler = static_cast<ExprListExpr *>(cast_expr->child().get());
         eler->reset();
       }
     }
-    bool res = false; // 有一样的值
+    bool res = false;  // 有一样的值
     while (RC::SUCCESS == (rc = right_->get_value(tuple, right_value))) {
-      if(left_value.attr_type() != right_value.attr_type()){
-        //如果左右类型不一致尝试转成一样的类型
+      if (left_value.attr_type() != right_value.attr_type()) {
+        // 如果左右类型不一致尝试转成一样的类型
         auto left_to_right_cost = implicit_cast_cost(left_value.attr_type(), right_value.attr_type());
         auto right_to_left_cost = implicit_cast_cost(right_value.attr_type(), left_value.attr_type());
-        if(left_to_right_cost <= right_to_left_cost){
-          //左边转成右边的类型
+        if (left_to_right_cost <= right_to_left_cost) {
+          // 左边转成右边的类型
           Value cast_value;
           rc = Value::cast_to(left_value, right_value.attr_type(), cast_value);
-          if(rc != RC::SUCCESS){
+          if (rc != RC::SUCCESS) {
             LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(left_value.attr_type()), attr_type_to_string(right_value.attr_type()));
             return rc;
           }
           left_value = cast_value;
-        }else{
-          //右边转成左边的类型
+        } else {
+          // 右边转成左边的类型
           Value cast_value;
           rc = Value::cast_to(right_value, left_value.attr_type(), cast_value);
-          if(rc != RC::SUCCESS){
+          if (rc != RC::SUCCESS) {
             LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(right_value.attr_type()), attr_type_to_string(left_value.attr_type()));
             return rc;
           }
           right_value = cast_value;
         }
       }
-      if(left_value.compare(right_value) == 0) {
+      if (left_value.compare(right_value) == 0) {
         res = true;
       }
     }
-    if(rc != RC::RECORD_EOF){
+    if (rc != RC::RECORD_EOF) {
       return rc;
     }
     bool_value = comp_ == IN_OP ? res : !res;
     rc = rc == RC::RECORD_EOF ? RC::SUCCESS : rc;
-  }else{
-    //如果不是in/not in,那么每次比较两侧都仅有一个值
+  } else {
+    // 如果不是in/not in,那么每次比较两侧都仅有一个值
     rc = left_->get_value(tuple, left_value);
     if (rc != RC::SUCCESS) {
-      // LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
-      // return rc;
       value.set_boolean(false);
-      return RC::SUCCESS;
+      // return RC::SUCCESS;
+      return rc;
     }
+    if (left_->type() == ExprType::SUBQUERY && left_subquery_expr->has_more_row(tuple)) {
+      // 如果左侧是子查询且不是单一值类型，需要判断是否有多个值
+      return RC::INVALID_ARGUMENT;
+    }
+
     rc = right_->get_value(tuple, right_value);
     if (rc != RC::SUCCESS) {
-      // LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-      // return rc;
       value.set_boolean(false);
-      return RC::SUCCESS;
+      // return RC::SUCCESS;
+      return rc;
     }
-    if(left_->type() == ExprType::SUBQUERY && !left_subquery_expr->is_single_value()){
-      // 如果左侧是子查询且不是单一值类型，需要判断是否有多个值
-      Value left_value_tmp;
-      if(left_->get_value(tuple, left_value_tmp) != RC::RECORD_EOF){
-        value.set_boolean(false);
-        return RC::SUCCESS;
-      }
-    }
-    if(right_->type() == ExprType::SUBQUERY && !right_subquery_expr->is_single_value()){
+    if (right_->type() == ExprType::SUBQUERY && right_subquery_expr->has_more_row(tuple)) {
       // 如果右侧是子查询且不是单一值类型，需要判断是否有多个值
-      Value right_value_tmp;
-      if(right_->get_value(tuple, right_value_tmp) != RC::RECORD_EOF){
-        value.set_boolean(false);
-        return RC::SUCCESS;
-      }
+      return RC::INVALID_ARGUMENT;
     }
-    
-    if(left_value.attr_type() != right_value.attr_type()){
-      //如果左右类型不一致尝试转成一样的类型
+
+    if (left_value.attr_type() != right_value.attr_type()) {
+      // 如果左右类型不一致尝试转成一样的类型
       auto left_to_right_cost = implicit_cast_cost(left_value.attr_type(), right_value.attr_type());
       auto right_to_left_cost = implicit_cast_cost(right_value.attr_type(), left_value.attr_type());
-      if(left_to_right_cost <= right_to_left_cost){
-        //左边转成右边的类型
+      if (left_to_right_cost <= right_to_left_cost) {
+        // 左边转成右边的类型
         Value cast_value;
         rc = Value::cast_to(left_value, right_value.attr_type(), cast_value);
-        if(rc != RC::SUCCESS){
+        if (rc != RC::SUCCESS) {
           LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(left_value.attr_type()), attr_type_to_string(right_value.attr_type()));
           return rc;
         }
         left_value = cast_value;
-      }else{
-        //右边转成左边的类型
+      } else {
+        // 右边转成左边的类型
         Value cast_value;
         rc = Value::cast_to(right_value, left_value.attr_type(), cast_value);
-        if(rc != RC::SUCCESS){
+        if (rc != RC::SUCCESS) {
           LOG_WARN("failed to cast value from %s to %s", attr_type_to_string(right_value.attr_type()), attr_type_to_string(left_value.attr_type()));
           return rc;
         }
@@ -473,10 +435,10 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     rc = compare_value(left_value, right_value, bool_value);
   }
 
-  if(left_subquery_expr != nullptr){
+  if (left_subquery_expr != nullptr) {
     left_subquery_expr->close();
   }
-  if(right_subquery_expr != nullptr){
+  if (right_subquery_expr != nullptr) {
     right_subquery_expr->close();
   }
 
@@ -484,7 +446,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     value.set_boolean(bool_value);
   }
   return rc;
-  
 }
 
 RC ComparisonExpr::eval(Chunk &chunk, std::vector<uint8_t> &select)
@@ -911,24 +872,26 @@ RC AggregateExpr::type_from_string(const char *type_str, AggregateExpr::Type &ty
   return rc;
 }
 
-SubQueryExpr::SubQueryExpr(const SelectSqlNode& sql_node) {
+SubQueryExpr::SubQueryExpr(const SelectSqlNode &sql_node)
+{
   sql_node_ = std::make_unique<SelectSqlNode>(sql_node);
-  is_open_ = false;
-  is_single_value_ = false;
+  is_open_  = false;
 }
 
 bool SubQueryExpr::has_more_row(const Tuple &tuple) const
 {
+  physical_oper_->set_parent_tuple(&tuple);
   return physical_oper_->next() != RC::RECORD_EOF;
 }
 
-RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
-  // physical_oper_->set_parent_tuple(&tuple);  //在physical_oper_->open()阶段已经设置，不需要重复设置
+RC SubQueryExpr::get_value(const Tuple &tuple, Value &value)
+{
+  physical_oper_->set_parent_tuple(&tuple);  // 在physical_oper_->open()阶段已经设置，不需要重复设置
   // 每次返回一行的第一个 cell
   RC rc = RC::SUCCESS;
-  if(!is_open_){
+  if (!is_open_) {
     rc = open(nullptr);
-    if(OB_FAIL(rc)){
+    if (OB_FAIL(rc)) {
       return rc;
     }
   }
@@ -940,53 +903,41 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value){
   return physical_oper_->current_tuple()->cell_at(0, value);
 }
 
-RC SubQueryExpr::open(Trx* trx) {
+RC SubQueryExpr::open(Trx *trx)
+{
   is_open_ = true;
   LOG_INFO("sub query open");
   return physical_oper_->open(trx);
-  
 }
 
-void SubQueryExpr::set_parent_tuple(const Tuple &tuple) {
-  physical_oper_->set_parent_tuple(&tuple);
-}
+void SubQueryExpr::set_parent_tuple(const Tuple &tuple) { physical_oper_->set_parent_tuple(&tuple); }
 
-RC SubQueryExpr::close() {
+RC SubQueryExpr::close()
+{
   is_open_ = false;
   LOG_INFO("sub query close");
   return physical_oper_->close();
 }
 
-RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, BaseTable *> &tables){
-  Stmt * select_stmt = nullptr;
-  RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt, tables); 
+RC SubQueryExpr::generate_select_stmt(Db *db, const std::unordered_map<std::string, BaseTable *> &tables)
+{
+  Stmt *select_stmt = nullptr;
+  RC    rc          = SelectStmt::create(db, *sql_node_.get(), select_stmt, tables);
   if (OB_FAIL(rc)) {
     return rc;
   }
   if (select_stmt->type() != StmtType::SELECT) {
     return RC::INVALID_ARGUMENT;
   }
-  SelectStmt* ss = static_cast<SelectStmt*>(select_stmt);
+  SelectStmt *ss = static_cast<SelectStmt *>(select_stmt);
   if (ss->query_expressions().size() > 1) {
-    return RC::INVALID_ARGUMENT;
-  }
-  //判断subquery中是否是聚合函数，如果是聚合函数那么subquery返回的结果是单值
-  if(ss->query_expressions()[0]->type() == ExprType::UNBOUND_AGGREGATION 
-    || ss->query_expressions()[0]->type() == ExprType::AGGREGATION){
-      is_single_value_ = true;
-  }
-  if(comp_ >= EQUAL_TO && comp_ <= GREAT_THAN){
-    if(!is_single_value_ && ss->filter_stmt() == nullptr){
-      return RC::INVALID_ARGUMENT;
-    }
-  }
-  if(!is_single_value_ && comp_ == NOT_EQUAL){
     return RC::INVALID_ARGUMENT;
   }
   stmt_ = std::unique_ptr<SelectStmt>(ss);
   return RC::SUCCESS;
 }
-RC SubQueryExpr::generate_logical_oper(){
+RC SubQueryExpr::generate_logical_oper()
+{
   LogicalPlanGenerator lpg;
   if (RC rc = lpg.create(stmt_.get(), logical_oper_); OB_FAIL(rc)) {
     LOG_WARN("subquery logical oper generate failed. return %s", strrc(rc));
@@ -994,7 +945,8 @@ RC SubQueryExpr::generate_logical_oper(){
   }
   return RC::SUCCESS;
 }
-RC SubQueryExpr::generate_physical_oper(){
+RC SubQueryExpr::generate_physical_oper()
+{
   PhysicalPlanGenerator ppg;
   if (RC rc = ppg.create(*logical_oper_, physical_oper_); OB_FAIL(rc)) {
     LOG_WARN("subquery physical oper generate failed. return %s", strrc(rc));
@@ -1003,8 +955,8 @@ RC SubQueryExpr::generate_physical_oper(){
   return RC::SUCCESS;
 }
 
-std::unique_ptr<Expression> SubQueryExpr::deep_copy() const 
-{ 
+std::unique_ptr<Expression> SubQueryExpr::deep_copy() const
+{
   SelectSqlNode new_select_sql;
   new_select_sql.deep_copy(*sql_node_);
   auto new_expr = std::make_unique<SubQueryExpr>(new_select_sql);

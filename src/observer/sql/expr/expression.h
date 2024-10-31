@@ -321,9 +321,6 @@ public:
   ExprType type() const {return ExprType::SUBQUERY;}
 
   AttrType value_type() const {
-    if(is_single_value_){
-      return AttrType::FLOATS;
-    }
     if(stmt_->query_expressions().size() == 1){
       return stmt_->query_expressions()[0]->value_type();
     }
@@ -340,10 +337,6 @@ public:
     return is_open_;
   }
 
-  bool is_single_value() const{
-    return is_single_value_;
-  }
-
   CompOp comp() const {return comp_;}
 
   void set_comp(CompOp comp) {comp_ = comp;}
@@ -357,7 +350,6 @@ private:
   std::unique_ptr<PhysicalOperator> physical_oper_;
   bool is_open_ = false;
   CompOp comp_;
-  bool is_single_value_;
 };
 
 /**
@@ -481,14 +473,14 @@ public:
   RC traverse_check(const std::function<RC(Expression*)>& check_func) override
   {
     RC rc = RC::SUCCESS;
-    if(left_->type() == ExprType::SUBQUERY){
-      SubQueryExpr* sqe = static_cast<SubQueryExpr*>(left_.get());
-      sqe->set_comp(comp_);
-    }
-    if(right_->type() == ExprType::SUBQUERY){
-      SubQueryExpr* sqe = static_cast<SubQueryExpr*>(right_.get());
-      sqe->set_comp(comp_);
-    }
+    // if(left_->type() == ExprType::SUBQUERY){
+    //   SubQueryExpr* sqe = static_cast<SubQueryExpr*>(left_.get());
+    //   sqe->set_comp(comp_);
+    // }
+    // if(right_->type() == ExprType::SUBQUERY){
+    //   SubQueryExpr* sqe = static_cast<SubQueryExpr*>(right_.get());
+    //   sqe->set_comp(comp_);
+    // }
     if (RC::SUCCESS != (rc = left_->traverse_check(check_func))) {
       return rc;
     } else if (RC::SUCCESS != (rc = right_->traverse_check(check_func))) {

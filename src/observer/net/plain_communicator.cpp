@@ -37,7 +37,7 @@ RC PlainCommunicator::read_event(SessionEvent *&event)
   int data_len = 0;
   int read_len = 0;
 
-  const int    max_packet_size = 8192*16;
+  const int    max_packet_size = 8192 * 16;
   vector<char> buf(max_packet_size);
 
   // 持续接收消息，直到遇到'\0'。将'\0'遇到的后续数据直接丢弃没有处理，因为目前仅支持一收一发的模式
@@ -160,7 +160,9 @@ RC PlainCommunicator::write_debug(SessionEvent *request, bool &need_disconnect)
 RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
 {
   RC rc = write_result_internal(event, need_disconnect);
-  if(rc != RC::SUCCESS) {
+  if (rc != RC::SUCCESS) {
+    writer_->flush();  // TODO handle error
+
     return rc;
   }
   if (!need_disconnect) {
@@ -185,8 +187,8 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
 {
   RC rc = RC::SUCCESS;
 
-  need_disconnect = true;
-
+  need_disconnect       = true;
+  this->event           = event;
   SqlResult *sql_result = event->sql_result();
 
   if (RC::SUCCESS != sql_result->return_code() || !sql_result->has_operator()) {
@@ -203,53 +205,12 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   const TupleSchema &schema   = sql_result->tuple_schema();
   const int          cell_num = schema.cell_num();
 
-  for (int i = 0; i < cell_num; i++) {
-    const TupleCellSpec &spec  = schema.cell_at(i);
-    const char          *alias = spec.alias();
-    if (nullptr != alias || alias[0] != 0) {
-      if (0 != i) {
-        const char *delim = " | ";
-
-        rc = writer_->writen(delim, strlen(delim));
-        if (OB_FAIL(rc)) {
-          LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-          return rc;
-        }
-      }
-
-      int len = strlen(alias);
-
-      rc = writer_->writen(alias, len);
-      if (OB_FAIL(rc)) {
-        LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-        sql_result->close();
-        return rc;
-      }
-    }
-  }
-
-  if (cell_num > 0) {
-    char newline = '\n';
-
-    rc = writer_->writen(&newline, 1);
-    if (OB_FAIL(rc)) {
-      LOG_WARN("failed to send data to client. err=%s", strerror(errno));
-      sql_result->close();
-      return rc;
-    }
-  }
-
   rc = RC::SUCCESS;
-  if (event->session()->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR
-      && event->session()->used_chunk_mode()) {
-    rc = write_chunk_result(sql_result);
+  if (event->session()->get_execution_mode() == ExecutionMode::CHUNK_ITERATOR && event->session()->used_chunk_mode()) {
+    rc = write_chunk_result(sql_result, need_disconnect);
   } else {
-    rc = write_tuple_result(sql_result);
+    rc = write_tuple_result(sql_result, need_disconnect);
   }
-
-  // if (OB_FAIL(rc)) {
-  //   return rc;
-  // }
 
   if (cell_num == 0) {
     // 除了select之外，其它的消息通常不会通过operator来返回结果，表头和行数据都是空的
@@ -273,12 +234,64 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   return rc;
 }
 
-RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
+RC PlainCommunicator::write_tuple_result(SqlResult *sql_result, bool &need_disconnect)
 {
-  RC rc = RC::SUCCESS;
-  Tuple *tuple = nullptr;
+  RC                 rc       = RC::SUCCESS;
+  const TupleSchema &schema   = sql_result->tuple_schema();
+  const int          cell_num = schema.cell_num();
+
+  auto write_head = [&]() {
+    for (int i = 0; i < cell_num; i++) {
+      const TupleCellSpec &spec  = schema.cell_at(i);
+      const char          *alias = spec.alias();
+      if (nullptr != alias || alias[0] != 0) {
+        if (0 != i) {
+          const char *delim = " | ";
+
+          rc = writer_->writen(delim, strlen(delim));
+          if (OB_FAIL(rc)) {
+            LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+            return rc;
+          }
+        }
+
+        int len = strlen(alias);
+
+        rc = writer_->writen(alias, len);
+        if (OB_FAIL(rc)) {
+          LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+          sql_result->close();
+          return rc;
+        }
+      }
+    }
+
+    if (cell_num > 0) {
+      char newline = '\n';
+
+      rc = writer_->writen(&newline, 1);
+      if (OB_FAIL(rc)) {
+        LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+        sql_result->close();
+        return rc;
+      }
+    }
+    return RC::SUCCESS;
+  };
+
+  Tuple *tuple    = nullptr;
+  bool   is_first = true;
+
   while (RC::SUCCESS == (rc = sql_result->next_tuple(tuple))) {
     assert(tuple != nullptr);
+
+    if (is_first) {
+      rc = write_head();
+      if (RC::SUCCESS != rc) {
+        return rc;
+      }
+      is_first = false;
+    }
 
     int cell_num = tuple->cell_num();
     for (int i = 0; i < cell_num; i++) {
@@ -323,15 +336,77 @@ RC PlainCommunicator::write_tuple_result(SqlResult *sql_result)
 
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
+    if (is_first) {
+      rc = write_head();
+      if (RC::SUCCESS != rc) {
+        return rc;
+      }
+      is_first = false;
+    }
+  } else {
+    sql_result->close();
+    sql_result->set_return_code(rc);
+    return write_state(this->event, need_disconnect);
   }
   return rc;
 }
 
-RC PlainCommunicator::write_chunk_result(SqlResult *sql_result)
+RC PlainCommunicator::write_chunk_result(SqlResult *sql_result, bool &need_disconnect)
 {
-  RC rc = RC::SUCCESS;
+  RC                 rc       = RC::SUCCESS;
+  const TupleSchema &schema   = sql_result->tuple_schema();
+  const int          cell_num = schema.cell_num();
+
+  auto write_head = [&]() {
+    for (int i = 0; i < cell_num; i++) {
+      const TupleCellSpec &spec  = schema.cell_at(i);
+      const char          *alias = spec.alias();
+      if (nullptr != alias || alias[0] != 0) {
+        if (0 != i) {
+          const char *delim = " | ";
+
+          rc = writer_->writen(delim, strlen(delim));
+          if (OB_FAIL(rc)) {
+            LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+            return rc;
+          }
+        }
+
+        int len = strlen(alias);
+
+        rc = writer_->writen(alias, len);
+        if (OB_FAIL(rc)) {
+          LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+          sql_result->close();
+          return rc;
+        }
+      }
+    }
+
+    if (cell_num > 0) {
+      char newline = '\n';
+
+      rc = writer_->writen(&newline, 1);
+      if (OB_FAIL(rc)) {
+        LOG_WARN("failed to send data to client. err=%s", strerror(errno));
+        sql_result->close();
+        return rc;
+      }
+    }
+    return RC::SUCCESS;
+  };
+
   Chunk chunk;
+  bool  is_first = true;
+
   while (RC::SUCCESS == (rc = sql_result->next_chunk(chunk))) {
+    if (is_first) {
+      rc = write_head();
+      if (RC::SUCCESS != rc) {
+        return rc;
+      }
+      is_first = false;
+    }
     int col_num = chunk.column_num();
     for (int row_idx = 0; row_idx < chunk.rows(); row_idx++) {
       for (int col_idx = 0; col_idx < col_num; col_idx++) {
@@ -371,6 +446,17 @@ RC PlainCommunicator::write_chunk_result(SqlResult *sql_result)
 
   if (rc == RC::RECORD_EOF) {
     rc = RC::SUCCESS;
+    if (is_first) {
+      rc = write_head();
+      if (RC::SUCCESS != rc) {
+        return rc;
+      }
+      is_first = false;
+    }
+  } else {
+    sql_result->close();
+    sql_result->set_return_code(rc);
+    return write_state(this->event, need_disconnect);
   }
   return rc;
 }

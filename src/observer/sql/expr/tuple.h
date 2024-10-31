@@ -506,6 +506,7 @@ class JoinedTuple : public Tuple
 {
 public:
   JoinedTuple()          = default;
+  JoinedTuple(Tuple* left, Tuple* right) : left_(left), right_(right) {}
   virtual ~JoinedTuple() = default;
 
   void set_left(Tuple *left) { left_ = left; }
