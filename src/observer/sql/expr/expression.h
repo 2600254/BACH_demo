@@ -319,7 +319,17 @@ public:
 
   ExprType type() const {return ExprType::SUBQUERY;}
 
-  AttrType value_type() const {return AttrType::UNDEFINED;}
+  AttrType value_type() const {
+    if(is_single_value_){
+      return AttrType::FLOATS;
+    }
+    if(stmt_->query_expressions().size() == 1){
+      return stmt_->query_expressions()[0]->value_type();
+    }
+    return AttrType::UNDEFINED;
+  }
+
+  void set_parent_tuple(const Tuple &tuple);
 
   RC generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables);
   RC generate_logical_oper();
@@ -331,10 +341,6 @@ public:
 
   bool is_single_value() const{
     return is_single_value_;
-  }
-
-  void set_opened(){
-    is_open_ = true;
   }
 
   CompOp comp() const {return comp_;}
