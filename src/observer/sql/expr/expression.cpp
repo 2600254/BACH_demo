@@ -884,8 +884,8 @@ RC AggregateExpr::get_value(const Tuple &tuple, Value &value)
   // int index = 0;
   //  spec.set_agg_type(get_aggr_func_type());
   if (is_first_) {
-    bool &is_first_ref = const_cast<bool &>(is_first_);
-    is_first_ref       = false;
+    // bool &is_first_ref = const_cast<bool &>(is_first_);
+    // is_first_ref       = false;
     return tuple.find_cell(spec, value, const_cast<int &>(index_));
   } else {
     return tuple.cell_at(index_, value);
