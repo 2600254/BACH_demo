@@ -140,9 +140,9 @@ public:
   string  get_string() const;
   bool    get_boolean() const;
   int64_t get_long() const;
+  void set_int(int val);
 
 private:
-  void set_int(int val);
   void set_float(float val);
   void set_long(int64_t val);
   void set_string(const char *s, int len = 0);

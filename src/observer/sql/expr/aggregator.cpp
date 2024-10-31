@@ -21,7 +21,7 @@ RC SumAggregator::accumulate(const Value &value)
     value_ = value;
     return RC::SUCCESS;
   }
-  if (value.is_null()){
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s", 
@@ -32,6 +32,10 @@ RC SumAggregator::accumulate(const Value &value)
 
 RC SumAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED|| value_.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -45,7 +49,7 @@ RC AvgAggregator::accumulate(const Value &value)
     }
     return RC::SUCCESS;
   }
-  if (value.is_null()){
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
 
@@ -58,6 +62,10 @@ RC AvgAggregator::accumulate(const Value &value)
 
 RC AvgAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result.set_type(AttrType::FLOATS);
   Value::divide(value_, count_, result);
   return RC::SUCCESS;
@@ -69,7 +77,7 @@ RC MinAggregator::accumulate(const Value &value)
     value_ = value;
     return RC::SUCCESS;
   }
-  if (value.is_null()){
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
@@ -82,6 +90,10 @@ RC MinAggregator::accumulate(const Value &value)
 
 RC MinAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED|| value_.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -92,7 +104,7 @@ RC MaxAggregator::accumulate(const Value &value)
     value_ = value;
     return RC::SUCCESS;
   }
-  if (value.is_null()){
+  if (value.is_null()) {
     return RC::SUCCESS;
   }
   ASSERT(value.attr_type() == value_.attr_type(), "type mismatch. value type: %s, value_.type: %s",
@@ -105,6 +117,10 @@ RC MaxAggregator::accumulate(const Value &value)
 
 RC MaxAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED|| value_.is_null()) {
+    result.set_null();
+    return RC::SUCCESS;
+  }
   result = value_;
   return RC::SUCCESS;
 }
@@ -133,6 +149,11 @@ RC CountAggregator::accumulate(const Value &value)
 
 RC CountAggregator::evaluate(Value &result)
 {
+  if (value_.attr_type() == AttrType::UNDEFINED || value_.is_null()) {
+    // value_.set_int(0);
+    result.set_int(0);
+    return RC::SUCCESS;
+  }
   result = count_;
   return RC::SUCCESS;
 }
