@@ -69,6 +69,7 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
       CompositeTuple composite_tuple;
       composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
+      composite_tuple.add_row_tuple(child_tuple);
       group_value_ = make_unique<GroupValueType>(std::move(aggregator_list), std::move(composite_tuple));
     }
     

@@ -709,6 +709,7 @@ public:
   std::unique_ptr<Expression> deep_copy() const override
   {
     auto new_expr = std::make_unique<UnboundAggregateExpr>(aggregate_name_.c_str(), std::move(child_ ->deep_copy()));
+    new_expr->set_name(name());
     return new_expr;
   }
 

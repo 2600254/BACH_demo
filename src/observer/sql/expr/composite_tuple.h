@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/expr/tuple.h"
+#include "sql/expr/expression_tuple.h"
 
 /**
  * @brief 组合的Tuple
@@ -43,13 +44,29 @@ public:
   RC  find_cell(const TupleCellSpec &spec, Value &cell, int &index) const override;
 
   void   add_tuple(std::unique_ptr<Tuple> tuple);
+  void   add_row_tuple(Tuple *tuple);
   Tuple &tuple_at(size_t index);
 
-  int get_tuple_size() const { return tuples_.size(); }
+  int get_tuple_size() const { 
+    int tuple_size = 0;
+    for (const auto &tuple : tuples_) {
+      tuple_size+= tuple->get_tuple_size();
+    }
+    return tuple_size;
+   }
   RC get_tuple_rid(int tuple_idx, const BaseTable *&table, RID &rid) const override{
-    return tuples_[tuple_idx]->get_tuple_rid(tuple_idx, table, rid);
+
+    for (const auto &tuple : row_tuples_) {
+      if (tuple_idx < tuple->get_tuple_size()) {
+        return tuple->get_tuple_rid(tuple_idx, table, rid);
+      } else {
+        tuple_idx -= tuple->get_tuple_size();
+      }
+    }
+    return RC::NOTFOUND;
   }
 
 private:
   std::vector<std::unique_ptr<Tuple>> tuples_;
+  std::vector<Tuple*> row_tuples_;
 };

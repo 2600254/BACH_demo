@@ -63,6 +63,7 @@ RC CompositeTuple::find_cell(const TupleCellSpec &spec, Value &cell, int &index)
 }
 
 void CompositeTuple::add_tuple(unique_ptr<Tuple> tuple) { tuples_.push_back(std::move(tuple)); }
+void CompositeTuple::add_row_tuple(Tuple *tuple) { row_tuples_.push_back(tuple); }
 
 Tuple &CompositeTuple::tuple_at(size_t index) 
 { 
