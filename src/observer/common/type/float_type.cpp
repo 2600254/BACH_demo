@@ -107,7 +107,7 @@ RC FloatType::to_string(const Value &val, string &result) const
 RC FloatType::cast_to(const Value &val, AttrType type, Value &result) const
 {
   if (type == AttrType::INTS) {
-    result.set_int(val.get_float());
+    result.set_int(val.get_float() + 0.5);
   } else if (type == AttrType::NULLS){
     return RC::SUCCESS;
   }
