@@ -39,12 +39,8 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
   ValueListTuple group_by_evaluated_tuple;
 
-  LOG_INFO("ScalarGroupByPhysicalOperator");
-
   while (OB_SUCC(rc = child.next())) {
-    LOG_INFO("ScalarGroupByPhysicalOperator2");
     Tuple *child_tuple = child.current_tuple();
-    LOG_INFO("child_tuple == nullptr: %d", child_tuple == nullptr);
     if (nullptr == child_tuple) {
       LOG_WARN("failed to get tuple from child operator. rc=%s", strrc(rc));
       return RC::INTERNAL;
@@ -52,8 +48,6 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
     // 计算需要做聚合的值
     group_value_expression_tuple.set_tuple(child_tuple);
-
-    LOG_INFO("group_value_ == nullptr: %d", group_value_ == nullptr);
 
     // 计算聚合值
     if (group_value_ == nullptr) {
@@ -69,6 +63,7 @@ RC ScalarGroupByPhysicalOperator::open(Trx *trx)
 
       CompositeTuple composite_tuple;
       composite_tuple.add_tuple(make_unique<ValueListTuple>(std::move(child_tuple_to_value)));
+      composite_tuple.add_row_tuple(child_tuple);
       group_value_ = make_unique<GroupValueType>(std::move(aggregator_list), std::move(composite_tuple));
     }
     
