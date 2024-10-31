@@ -688,6 +688,7 @@ class UnboundAggregateExpr : public Expression
 {
 public:
   UnboundAggregateExpr(const char *aggregate_name, Expression *child);
+  UnboundAggregateExpr(const char *aggregate_name, std::unique_ptr<Expression> child);
   virtual ~UnboundAggregateExpr() = default;
 
   ExprType type() const override { return ExprType::UNBOUND_AGGREGATION; }
@@ -701,9 +702,8 @@ public:
 
   std::unique_ptr<Expression> deep_copy() const override
   {
-    std::unique_ptr<Expression> new_child = child_ ->deep_copy();
-    auto new_expr = std::make_unique<UnboundAggregateExpr>(aggregate_name_.c_str(), std::move(new_child));
-    return nullptr;
+    auto new_expr = std::make_unique<UnboundAggregateExpr>(aggregate_name_.c_str(), std::move(child_ ->deep_copy()));
+    return new_expr;
   }
 
 private:
@@ -771,6 +771,11 @@ public:
       return rc;
     }
     return rc;
+  }
+
+  RC set_index(int index) {
+    index_ = index;
+    return RC::SUCCESS;
   }
 
 public:

@@ -678,6 +678,9 @@ RC ArithmeticExpr::try_get_value(Value &value) const
 UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expression *child)
     : aggregate_name_(aggregate_name), child_(child)
 {}
+UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, std::unique_ptr<Expression> child)
+    : aggregate_name_(aggregate_name), child_(std::move(child))
+{}
 
 ////////////////////////////////////////////////////////////////////////////////
 AggregateExpr::AggregateExpr(Type type, Expression *child) : aggregate_type_(type), child_(child) {}
@@ -748,8 +751,8 @@ RC AggregateExpr::get_value(const Tuple &tuple, Value &value)
   // int index = 0;
   //  spec.set_agg_type(get_aggr_func_type());
   if (is_first_) {
-    // bool &is_first_ref = const_cast<bool &>(is_first_);
-    // is_first_ref       = false;
+    bool &is_first_ref = const_cast<bool &>(is_first_);
+    is_first_ref       = false;
     return tuple.find_cell(spec, value, const_cast<int &>(index_));
   } else {
     return tuple.cell_at(index_, value);
