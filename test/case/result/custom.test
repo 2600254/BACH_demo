@@ -56,7 +56,7 @@ INSERT INTO null_table4 VALUES (9, 9, 'N9');
 
 UPDATE null_table4 SET num=null where id=9;
 
-UPDATE null_table4 SET id=(SELECT null_table3.num from null_table3 where null_table3.id=4) where id=9;
+UPDATE null_table4 SET id=(SELECT null_table3.num from null_table3 where null_table3.id=6) where id=9;
 
 
 CREATE TABLE unique_table2(id1 int, id2 int, col1 int, col2 int);
