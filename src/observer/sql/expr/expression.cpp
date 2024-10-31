@@ -34,7 +34,6 @@ RC FieldExpr::get_value(const Tuple &tuple, Value &value)
   if(table_name_str == nullptr){
     table_name_str = field_.table_name();
   }
-  LOG_INFO("table_name: %s, field_name: %s", table_name_str, field_name());
   if(is_first_){
     bool & is_first_ref = const_cast<bool&>(is_first_);
     is_first_ref = false;
@@ -330,7 +329,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
     }
   });
 
-  LOG_INFO("left type: %d", left_->type());
   if(left_->type() == ExprType::SUBQUERY){
     left_subquery_expr = static_cast<SubQueryExpr *>(left_.get());
     if(!left_subquery_expr->has_opened()){
@@ -341,7 +339,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value)
       }
     }
   }
-  LOG_INFO("right type: %d", right_->type());
   if(right_->type() == ExprType::SUBQUERY){
     right_subquery_expr = static_cast<SubQueryExpr *>(right_.get());
     if(!right_subquery_expr->has_opened()){
