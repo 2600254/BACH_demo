@@ -360,12 +360,16 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
       null_bitmap.set_bit(normal_field_start_index + i);
       continue;
     }
+    if (value.is_null()){
+      null_bitmap.set_bit(normal_field_start_index + i);
+    }
     if (field->type() != value.attr_type()) {
       if (AttrType::TEXTS == field->type() && AttrType::CHARS == value.attr_type()) {
         rc = set_value_to_record(record_data, value, field);
       } else {
         Value real_value;
         rc = Value::cast_to(value, field->type(), real_value);
+        LOG_INFO("field type:%d, value type:%d, real_value type:%d", field->type(), value.attr_type(), real_value.attr_type());
         if (OB_FAIL(rc)) {
           LOG_WARN("failed to cast value. table name:%s,field name:%s,value:%s ",
               table_meta_.name(), field->name(), value.to_string().c_str());
@@ -423,15 +427,15 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
       copy_len = data_len + 1;
     }
   }
-    if (AttrType::TEXTS == field->type()) {
-      // 需要将value中的字符串插入到文件中，然后将offset、length写入record
-      int64_t position[2];
-      position[1] = value.length();
-      text_buffer_pool_->append_data(position[0], position[1], value.data());
-      memcpy(record_data + field->offset(), position, 2 * sizeof(int64_t));
-    } else {
-      memcpy(record_data + field->offset(), value.data(), copy_len);
-    }
+  if (AttrType::TEXTS == field->type()) {
+    // 需要将value中的字符串插入到文件中，然后将offset、length写入record
+    int64_t position[2];
+    position[1] = value.length();
+    text_buffer_pool_->append_data(position[0], position[1], value.data());
+    memcpy(record_data + field->offset(), position, 2 * sizeof(int64_t));
+  } else {
+    memcpy(record_data + field->offset(), value.data(), copy_len);
+  }
   return RC::SUCCESS;
 }
 

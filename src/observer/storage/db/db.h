@@ -26,6 +26,9 @@ See the Mulan PSL v2 for more details. */
 #include "storage/buffer/double_write_buffer.h"
 
 class Table;
+class View;
+class Field;
+class BaseTable;
 class LogHandler;
 class BufferPoolManager;
 class TrxKit;
@@ -72,6 +75,10 @@ public:
    */
   RC drop_table(const char *table_name);
 
+  // view相关
+  RC create_view(const char *view_name, bool allow_write, span<const AttrInfoSqlNode> attributes, 
+                const std::vector<Field> &map_fields, SelectSqlNode *select_sql, const StorageFormat storage_format = StorageFormat::ROW_FORMAT);
+
   /**
    * @brief 根据表名查找表
    */
@@ -80,6 +87,8 @@ public:
    * @brief 根据表ID查找表
    */
   Table *find_table(int32_t table_id) const;
+
+  BaseTable *find_base_table(const char *table_name) const;
 
   /// @brief 当前数据库的名称
   const char *name() const;
@@ -119,7 +128,7 @@ private:
 private:
   string                         name_;                 ///< 数据库名称
   string                         path_;                 ///< 数据库文件存放的目录
-  unordered_map<string, Table *> opened_tables_;        ///< 当前所有打开的表
+  unordered_map<string, BaseTable *> opened_tables_;        ///< 当前所有打开的表
   unique_ptr<BufferPoolManager>  buffer_pool_manager_;  ///< 当前数据库的buffer pool管理器
   unique_ptr<LogHandler>         log_handler_;          ///< 当前数据库的日志处理器
   unique_ptr<TrxKit>             trx_kit_;              ///< 当前数据库的事务管理器

@@ -811,6 +811,9 @@ RC ArithmeticExpr::try_get_value(Value &value) const
 UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, Expression *child)
     : aggregate_name_(aggregate_name), child_(child)
 {}
+UnboundAggregateExpr::UnboundAggregateExpr(const char *aggregate_name, std::unique_ptr<Expression> child)
+    : aggregate_name_(aggregate_name), child_(std::move(child))
+{}
 
 ////////////////////////////////////////////////////////////////////////////////
 AggregateExpr::AggregateExpr(Type type, Expression *child) : aggregate_type_(type), child_(child) {}
@@ -881,8 +884,8 @@ RC AggregateExpr::get_value(const Tuple &tuple, Value &value)
   // int index = 0;
   //  spec.set_agg_type(get_aggr_func_type());
   if (is_first_) {
-    // bool &is_first_ref = const_cast<bool &>(is_first_);
-    // is_first_ref       = false;
+    bool &is_first_ref = const_cast<bool &>(is_first_);
+    is_first_ref       = false;
     return tuple.find_cell(spec, value, const_cast<int &>(index_));
   } else {
     return tuple.cell_at(index_, value);
@@ -954,7 +957,7 @@ RC SubQueryExpr::close() {
   return physical_oper_->close();
 }
 
-RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables){
+RC SubQueryExpr::generate_select_stmt(Db* db, const std::unordered_map<std::string, BaseTable *> &tables){
   Stmt * select_stmt = nullptr;
   RC rc = SelectStmt::create(db, *sql_node_.get(), select_stmt, tables); 
   if (OB_FAIL(rc)) {
@@ -998,4 +1001,18 @@ RC SubQueryExpr::generate_physical_oper(){
     return rc;
   }
   return RC::SUCCESS;
+}
+
+std::unique_ptr<Expression> SubQueryExpr::deep_copy() const 
+{ 
+  SelectSqlNode new_select_sql;
+  new_select_sql.deep_copy(*sql_node_);
+  auto new_expr = std::make_unique<SubQueryExpr>(new_select_sql);
+  new_expr->set_name(name());
+  new_expr->set_alias(alias());
+  // TODO 这里不考虑其他
+  if (stmt_ || logical_oper_ || physical_oper_) {
+    LOG_ERROR("ERROR! in subquery expr deep copy");
+  }
+  return new_expr;
 }

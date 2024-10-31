@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 
 class Db;
 class Table;
+class BaseTable;
 class FieldMeta;
 
 /**
@@ -38,7 +39,7 @@ public:
   std::unique_ptr<Expression>& condition(){ return condition_expr_; }
 
 public:
-  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create(Db *db, BaseTable *default_table, std::unordered_map<std::string, BaseTable *> *tables,
       Expression *condition, FilterStmt *&stmt);
   static int implicit_cast_cost(AttrType from, AttrType to);
 private:

@@ -15,17 +15,19 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/delete_physical_operator.h"
 #include "common/log/log.h"
 #include "storage/table/table.h"
+#include "storage/table/view.h"
 #include "storage/trx/trx.h"
 
 RC DeletePhysicalOperator::open(Trx *trx)
 {
+  RC rc = RC::SUCCESS;
   if (children_.empty()) {
     return RC::SUCCESS;
   }
-
+  
   std::unique_ptr<PhysicalOperator> &child = children_[0];
 
-  RC rc = child->open(trx);
+  rc = child->open(trx);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to open child operator: %s", strrc(rc));
     return rc;
@@ -33,6 +35,20 @@ RC DeletePhysicalOperator::open(Trx *trx)
 
   trx_ = trx;
 
+  if (table_->is_table()) {
+    rc = delete_from_table();
+  } else {
+    rc = delete_from_view();
+  }
+
+  return RC::SUCCESS;
+}
+
+RC DeletePhysicalOperator::delete_from_table()
+{
+  RC rc = RC::SUCCESS;
+  Table *table = static_cast<Table*>(table_);
+  std::unique_ptr<PhysicalOperator> &child = children_[0];
   while (OB_SUCC(rc = child->next())) {
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
@@ -50,15 +66,54 @@ RC DeletePhysicalOperator::open(Trx *trx)
   // 先收集记录再删除
   // 记录的有效性由事务来保证，如果事务不保证删除的有效性，那说明此事务类型不支持并发控制，比如VacuousTrx
   for (Record &record : records_) {
-    rc = trx_->delete_record(table_, record);
+    rc = trx_->delete_record(table, record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to delete record: %s", strrc(rc));
       return rc;
     }
   }
 
-  return RC::SUCCESS;
+  return rc;
 }
+
+RC DeletePhysicalOperator::delete_from_view()
+{
+  RC rc = RC::SUCCESS;
+  std::unique_ptr<PhysicalOperator> &child = children_[0];
+
+  while (OB_SUCC(rc = child->next())) {
+    Tuple *tuple = child->current_tuple();
+    if (nullptr == tuple) {
+      LOG_WARN("failed to get current record: %s", strrc(rc));
+      return rc;
+    }
+
+    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+    std::unordered_map<const BaseTable*, RID> table_rid = row_tuple->get_table_rid_map();
+    for (auto iter : table_rid) {
+      Record record;
+      if (!iter.first->is_table()) {
+        LOG_ERROR("unexpect map_relation from view to view");
+        return RC::INTERNAL;
+      }
+
+      Table *table = const_cast<Table*>(static_cast<const Table*>(iter.first));
+      rc = table->get_record(iter.second, record);
+      if (RC::SUCCESS != rc) {
+        LOG_WARN("failed to get record from table:%s, rid:%ld-%ld", table->name(), iter.second.page_num, iter.second.slot_num);
+        return rc;
+      }
+
+      rc = trx_->delete_record(table, record);
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to delete record: %s", strrc(rc));
+        return rc;
+      }
+    } // end delete one record from tables
+  }
+  return rc;
+}
+
 
 RC DeletePhysicalOperator::next()
 {

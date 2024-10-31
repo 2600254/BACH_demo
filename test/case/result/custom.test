@@ -59,55 +59,8 @@ UPDATE null_table4 SET num=null where id=9;
 UPDATE null_table4 SET id=(SELECT null_table3.num from null_table3 where null_table3.id=4) where id=9;
 
 
-create table t_group_by (id int not null, score int not null, name char(1) null);
-insert into t_group_by values (5, 4, null);
-insert into t_group_by values (2, 2, null);
+CREATE TABLE unique_table2(id1 int, id2 int, col1 int, col2 int);
+CREATE UNIQUE INDEX index_id1 on unique_table2(id1);
 
-select name, max(score) from t_group_by group by name;
-
-CREATE TABLE big_order_by_0(id int, num int, price float, addr char(10), birthday date);
-CREATE TABLE big_order_by_1(id int, num int, price float, addr char(10), birthday date);
-CREATE TABLE big_order_by_2(id int, num int, price float, addr char(10), birthday date);
-CREATE TABLE big_order_by_3(id int, num int, price float, addr char(10), birthday date);
-
-
-
-
-UPDATE Update_select_t2 SET t_name=(select Update_select_t1.col1 from Update_select_t1 where Update_select_t1.id=7),col1=(select min(Update_select_t1.col1) from Update_select_t1) where id=5;
-SELECT * FROM Update_select_t2;
-
-
-
-
-CREATE TABLE Update_select_t1(id int, t_name char(10), col1 int, col2 int);
-CREATE TABLE Update_select_t2(id int, t_name char(10), col1 int, col2 int);
-
-insert into Update_select_t1 VALUES (1, 'YDHQW3419', 8, 6);
-insert into Update_select_t1 VALUES (7, 'KJ71Z', 2, 4);
-insert into Update_select_t1 VALUES (5, 'Q12HCJF', 6, 7);
-insert into Update_select_t1 VALUES (6, '2JF2K95ZBV', 6, 7);
-
-insert into Update_select_t2 VALUES (1, 'YDaads19', 8, 6);
-insert into Update_select_t2 VALUES (7, 'KJ7vvsda', 2, 4);
-insert into Update_select_t2 VALUES (5, 'agddcx', 6, 7);
-insert into Update_select_t2 VALUES (9, 'bwwfdss', 6, 7);
-
-UPDATE Update_select_t1 SET t_name='BZIZTCOF89', col2=7 WHERE id=6;
-SELECT * FROM Update_select_t1;
-UPDATE Update_select_t1 SET col1=2, col2=(select Update_select_t2.col2 from Update_select_t2 where Update_select_t2.id=1) WHERE id=6;
-SELECT * FROM Update_select_t1;
-
-UPDATE Update_select_t1 SET col1=8, col2=1 WHERE col2=6;
-SELECT * FROM Update_select_t1;
-
-UPDATE Update_select_t2 SET t_name=(select Update_select_t1.t_name from Update_select_t1 where Update_select_t1.id=6);
-SELECT * FROM Update_select_t2;
-UPDATE Update_select_t2 SET col1=1,col2=4;
-SELECT * FROM Update_select_t2;
-
-UPDATE Update_select_t2 SET t_name='0BR',col1=53 where col1=108;
-
-UPDATE Update_select_t2 SET col1=(select max(Update_select_t1.col2) from Update_select_t1),col2=(select max(Update_select_t1.col1) from Update_select_t1) where id=2;
-SELECT * FROM Update_select_t2;
-UPDATE Update_select_t2 SET col1=(select Update_select_t1.col1 from Update_select_t1 where Update_select_t1.id=6),col2=(select Update_select_t1.col2 from Update_select_t1 where Update_select_t1.id=1) where id=5;
-SELECT * FROM Update_select_t2;
+insert into unique_table2 values (1, 1, 1, 1);
+insert into unique_table2 values (1, 1, 1, 1);

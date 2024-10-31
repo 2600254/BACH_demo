@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 
 class Table;
+class BaseTable;
 
 /**
  * @brief 更新语句
@@ -28,7 +29,7 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt(
-      Table *table, std::vector<Expression *> expressions, std::vector<FieldMeta> fields, FilterStmt *filter_stmt);
+      BaseTable *table, std::vector<Expression *> expressions, std::vector<FieldMeta> fields, FilterStmt *filter_stmt);
   ~UpdateStmt() override;
 
 public:
@@ -37,13 +38,13 @@ public:
   static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table                    *table() const { return table_; }
+  BaseTable                    *table() const { return table_; }
   std::vector<Expression *> expressions() const { return expressions_; }
   std::vector<FieldMeta>    fields() const { return fields_; }
   FilterStmt               *filter_stmt() const { return filter_stmt_; }
 
 private:
-  Table *table_ = nullptr;
+  BaseTable *table_ = nullptr;
 
   std::vector<Expression *> expressions_;
   std::vector<FieldMeta>    fields_;

@@ -177,8 +177,7 @@ public:
   const char *table_name() const { return table_name_.c_str(); }
 
   unique_ptr<Expression> deep_copy() const override { 
-    LOG_WARN("RC::UNIMPLEMENTED StarExpr deep_copy");
-    return nullptr; 
+    return unique_ptr<StarExpr>(new StarExpr(*this));
   }
 
 private:
@@ -193,7 +192,7 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
+  FieldExpr(const BaseTable *table, const FieldMeta *field) : field_(table, field) {}
   FieldExpr(const std::string& table_name, const std::string& field_name)
       : table_name_(table_name), field_name_(field_name) {}
   FieldExpr(const Field &field) 
@@ -232,6 +231,8 @@ public:
   {
     return std::unique_ptr<FieldExpr>(new FieldExpr(*this));
   }
+  
+  FieldMeta get_field_meta() const { return *field_.meta(); }
 
 private:
   Field field_;
@@ -331,7 +332,7 @@ public:
 
   void set_parent_tuple(const Tuple &tuple);
 
-  RC generate_select_stmt(Db* db, const std::unordered_map<std::string, Table *> &tables);
+  RC generate_select_stmt(Db* db, const std::unordered_map<std::string, BaseTable *> &tables);
   RC generate_logical_oper();
   RC generate_physical_oper();
 
@@ -347,6 +348,7 @@ public:
 
   void set_comp(CompOp comp) {comp_ = comp;}
 
+    std::unique_ptr<Expression> deep_copy() const;
 
 private:
   std::unique_ptr<SelectSqlNode> sql_node_;
@@ -692,6 +694,7 @@ class UnboundAggregateExpr : public Expression
 {
 public:
   UnboundAggregateExpr(const char *aggregate_name, Expression *child);
+  UnboundAggregateExpr(const char *aggregate_name, std::unique_ptr<Expression> child);
   virtual ~UnboundAggregateExpr() = default;
 
   ExprType type() const override { return ExprType::UNBOUND_AGGREGATION; }
@@ -705,8 +708,8 @@ public:
 
   std::unique_ptr<Expression> deep_copy() const override
   {
-    LOG_ERROR("RC::UNIMPLEMENTED UnboundAggregateExpr deep_copy");
-    return nullptr;
+    auto new_expr = std::make_unique<UnboundAggregateExpr>(aggregate_name_.c_str(), std::move(child_ ->deep_copy()));
+    return new_expr;
   }
 
 private:
@@ -765,7 +768,6 @@ public:
     }
   }
 
-  
   RC traverse_check(const std::function<RC(Expression*)>& check_func) override
   {
     RC rc = RC::SUCCESS;
@@ -777,6 +779,10 @@ public:
     return rc;
   }
 
+  RC set_index(int index) {
+    index_ = index;
+    return RC::SUCCESS;
+  }
 
 public:
   static RC type_from_string(const char *type_str, Type &type);
@@ -833,6 +839,18 @@ public:
       }
       func(this);
     }
+  }
+  
+  std::unique_ptr<Expression> deep_copy() const override
+  {
+    std::vector<std::unique_ptr<Expression>> new_children;
+    for (auto& expr : exprs_) {
+      new_children.emplace_back(expr->deep_copy());
+    }
+    auto new_expr = std::make_unique<ExprListExpr>(std::move(new_children));
+    new_expr->set_name(name());
+    new_expr->set_alias(alias());
+    return new_expr;
   }
 
 private:

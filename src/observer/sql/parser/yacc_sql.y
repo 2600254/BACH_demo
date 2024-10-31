@@ -94,6 +94,7 @@ bool exp2value(Expression *exp, Value &value){
         TABLE
         TABLES
         INDEX
+        VIEW
         CALC
         SELECT
         DESC
@@ -124,8 +125,8 @@ bool exp2value(Expression *exp, Value &value){
         OR
         SET
         ON
-        LOAD
-        DATA
+        LOAD_DATA
+        //DATA
         INFILE
         MAX_T
         MIN_T
@@ -230,6 +231,7 @@ bool exp2value(Expression *exp, Value &value){
 %type <sql_node>            create_index_stmt
 %type <sql_node>            drop_index_stmt
 %type <sql_node>            sync_stmt
+%type <sql_node>            create_view_stmt
 %type <sql_node>            begin_stmt
 %type <sql_node>            commit_stmt
 %type <sql_node>            rollback_stmt
@@ -272,6 +274,7 @@ command_wrapper:
   | desc_table_stmt
   | create_index_stmt
   | drop_index_stmt
+  | create_view_stmt
   | sync_stmt
   | begin_stmt
   | commit_stmt
@@ -471,6 +474,31 @@ null_option:
     | NOT NULL_T
     {
       $$ = false;
+    }
+    ;
+
+create_view_stmt:
+    CREATE VIEW ID AS select_stmt
+    {
+      $$ = $5;
+      $$->flag = SCF_CREATE_VIEW;
+      $$->create_view.view_name = $3;
+      free($3);
+    }
+    | CREATE VIEW ID LBRACE ID idx_col_list RBRACE AS select_stmt
+    {
+      $$ = $9;
+      $$->flag = SCF_CREATE_VIEW;
+      $$->create_view.view_name = $3;
+
+      std::vector<std::string> &col_names = $$->create_view.col_names;
+      if (nullptr != $6) {
+        col_names.swap(*$6);
+        delete $6;
+      }
+      col_names.emplace_back($5);
+      std::reverse(col_names.begin(), col_names.end());
+      free($3);
     }
     ;
 
@@ -977,14 +1005,14 @@ opt_order_by:
 	}
 	;
 load_data_stmt:
-    LOAD DATA INFILE SSS INTO TABLE ID 
+    LOAD_DATA INFILE SSS INTO TABLE ID 
     {
-      char *tmp_file_name = common::substr($4, 1, strlen($4) - 2);
+      char *tmp_file_name = common::substr($3, 1, strlen($3) - 2);
       
       $$ = new ParsedSqlNode(SCF_LOAD_DATA);
-      $$->load_data.relation_name = $7;
+      $$->load_data.relation_name = $6;
       $$->load_data.file_name = tmp_file_name;
-      free($7);
+      free($6);
       free(tmp_file_name);
     }
     ;

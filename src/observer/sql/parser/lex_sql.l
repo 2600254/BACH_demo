@@ -90,6 +90,7 @@ DROP                                    RETURN_TOKEN(DROP);
 TABLE                                   RETURN_TOKEN(TABLE);
 TABLES                                  RETURN_TOKEN(TABLES);
 INDEX                                   RETURN_TOKEN(INDEX);
+VIEW                                    RETURN_TOKEN(VIEW);
 ON                                      RETURN_TOKEN(ON);
 SHOW                                    RETURN_TOKEN(SHOW);
 SYNC                                    RETURN_TOKEN(SYNC);
@@ -113,8 +114,7 @@ DATE                                    RETURN_TOKEN(DATE_T);
 TEXT                                    RETURN_TOKEN(TEXT_T);
 CHAR                                    RETURN_TOKEN(STRING_T);
 FLOAT                                   RETURN_TOKEN(FLOAT_T);
-LOAD                                    RETURN_TOKEN(LOAD);
-DATA                                    RETURN_TOKEN(DATA);
+LOAD" "DATA                             RETURN_TOKEN(LOAD_DATA);
 INFILE                                  RETURN_TOKEN(INFILE);
 MAX |
 MIN |

@@ -40,8 +40,8 @@ SelectStmt::~SelectStmt()
   }
 }
 
-RC SelectStmt::create(
-    Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, Table *> &parent_table_map)
+RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, 
+  const std::unordered_map<std::string, BaseTable *> &parent_table_map)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -51,39 +51,39 @@ RC SelectStmt::create(
   BinderContext binder_context;
 
   // collect tables in `from` statement
-  vector<Table *> tables;
-  unordered_map<string, Table *> table_map = parent_table_map;  // 直接赋值，后面别名重复时覆盖，以当前作用域为主
+  vector<BaseTable *>                tables;
+  unordered_map<string, BaseTable *> table_map = parent_table_map; //直接赋值，后面别名重复时覆盖，以当前作用域为主
   vector<JoinTables> join_tables;
 
   // 建立查询中涉及到的表的信息
   for (auto &relation : select_sql.relations) {
-    if (table_map.find(relation.base_relation.first) == table_map.end()) {
-      Table *table = db->find_table(relation.base_relation.first.c_str());
-      if (nullptr == table) {
-        LOG_WARN("no such table: %s", relation.base_relation.first.c_str());
-        return RC::SCHEMA_TABLE_NOT_EXIST;
-      }
-      tables.push_back(table);
-      // table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
-      // binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
-      binder_context.add_table(relation.base_relation.first, table);
-      table_map[relation.base_relation.first] = table;
-      if (relation.base_relation.second.size() > 0) {
-        // 如果有别名，也放入map中
-        table_map[relation.base_relation.second] = table;
-        if (!binder_context.add_table(relation.base_relation.second, table)) {
-          LOG_WARN("table alias %s already exists", relation.base_relation.second.c_str());
-          return RC::INVALID_ARGUMENT;
-        }
+    // if(table_map.find(relation.base_relation.first) == table_map.end()){
+    BaseTable *table = db->find_base_table(relation.base_relation.first.c_str());
+    if (nullptr == table) {
+      LOG_WARN("no such table: %s", relation.base_relation.first.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+    tables.push_back(table);
+    // table_alias_src_map[relation.base_relation.second] = relation.base_relation.first;
+    // binder_context.set_table_alias_src(relation.base_relation.second, relation.base_relation.first);
+    binder_context.add_table(relation.base_relation.first, table);
+    table_map[relation.base_relation.first] = table;
+    if(relation.base_relation.second.size() > 0){
+      //如果有别名，也放入map中
+      table_map[relation.base_relation.second] = table;
+      if(!binder_context.add_table(relation.base_relation.second, table)){
+        LOG_WARN("table alias %s already exists", relation.base_relation.second.c_str());
+        return RC::INVALID_ARGUMENT;
       }
     }
-
-    const std::vector<pair<string, string>> &join_relations = relation.join_relations;
+    // }
+    
+    const std::vector<pair<string, string>>& join_relations = relation.join_relations;
     for (size_t j = 0; j < join_relations.size(); ++j) {
       if (table_map.find(join_relations[j].first) != table_map.end()) {
         continue;
       }
-      Table *table = db->find_table(join_relations[j].first.c_str());
+      BaseTable *table = db->find_base_table(join_relations[j].first.c_str());
       if (nullptr == table) {
         LOG_WARN("no such table: %s", join_relations[j].first.c_str());
         return RC::SCHEMA_TABLE_NOT_EXIST;
@@ -154,7 +154,7 @@ RC SelectStmt::create(
     }
   }
 
-  Table *default_table = nullptr;
+  BaseTable *default_table = nullptr;
   if (tables.size() == 1) {
     default_table = tables[0];
   }

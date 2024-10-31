@@ -23,6 +23,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/delete_physical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 #include "sql/operator/explain_physical_operator.h"
+#include "sql/operator/view_get_logical_operator.h"
+#include "sql/operator/view_scan_physical_operator.h"
 #include "sql/operator/expr_vec_physical_operator.h"
 #include "sql/operator/group_by_vec_physical_operator.h"
 #include "sql/operator/index_scan_physical_operator.h"
@@ -62,6 +64,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::TABLE_GET: {
       return create_plan(static_cast<TableGetLogicalOperator &>(logical_operator), oper);
+    } break;
+    
+    case LogicalOperatorType::VIEW_GET: {
+      return create_plan(static_cast<ViewGetLogicalOperator &>(logical_operator), oper);
     } break;
 
     case LogicalOperatorType::PREDICATE: {
@@ -132,6 +138,58 @@ RC PhysicalPlanGenerator::create_vec(LogicalOperator &logical_operator, unique_p
   return rc;
 }
 
+RC PhysicalPlanGenerator::create_plan(ViewGetLogicalOperator &logical_operator, unique_ptr<PhysicalOperator> &oper)
+{
+  RC rc = RC::SUCCESS;
+
+  vector<unique_ptr<Expression>> &predicates = logical_operator.predicates();//谓词下推这里才会有内容
+  // 看看是否有可以用于索引查找的表达式
+  View *view = logical_operator.view();
+
+  ValueExpr *value_expr = nullptr;
+  for (auto &expr : predicates) {
+    if (expr->type() == ExprType::COMPARISON) {
+      auto comparison_expr = static_cast<ComparisonExpr *>(expr.get());
+      // 简单处理，就找等值查询
+      if (comparison_expr->comp() != EQUAL_TO) {
+        continue;
+      }
+
+      unique_ptr<Expression> &left_expr = comparison_expr->left();
+      unique_ptr<Expression> &right_expr = comparison_expr->right();
+      // 左右比较的一边最少是一个值
+      if (left_expr->type() != ExprType::VALUE && right_expr->type() != ExprType::VALUE) {
+        continue;
+      }
+
+      FieldExpr *field_expr = nullptr;
+      if (left_expr->type() == ExprType::FIELD) {
+        ASSERT(right_expr->type() == ExprType::VALUE, "right expr should be a value expr while left is field expr");
+        field_expr = static_cast<FieldExpr *>(left_expr.get());
+        value_expr = static_cast<ValueExpr *>(right_expr.get());
+      } else if (right_expr->type() == ExprType::FIELD) {
+        ASSERT(left_expr->type() == ExprType::VALUE, "left expr should be a value expr while right is a field expr");
+        field_expr = static_cast<FieldExpr *>(right_expr.get());
+        value_expr = static_cast<ValueExpr *>(left_expr.get());
+      }
+
+      if (field_expr == nullptr) {
+        continue;
+      }
+      if (value_expr == nullptr) {
+        continue;
+      }
+
+    }
+  }
+
+  auto view_scan_oper = new ViewScanPhysicalOperator(view, logical_operator.read_write_mode());
+  view_scan_oper->set_predicates(std::move(predicates));
+  oper = unique_ptr<PhysicalOperator>(view_scan_oper);
+  LOG_TRACE("use view scan");
+
+  return rc;
+}
 
 
 RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, unique_ptr<PhysicalOperator> &oper)
@@ -283,7 +341,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
 
 RC PhysicalPlanGenerator::create_plan(InsertLogicalOperator &insert_oper, unique_ptr<PhysicalOperator> &oper)
 {
-  Table                  *table           = insert_oper.table();
+  BaseTable                  *table           = insert_oper.table();
   vector<Value>          &values          = insert_oper.values();
   InsertPhysicalOperator *insert_phy_oper = new InsertPhysicalOperator(table, std::move(values));
   oper.reset(insert_phy_oper);
@@ -412,7 +470,7 @@ RC PhysicalPlanGenerator::create_plan(CalcLogicalOperator &logical_oper, std::un
 RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper)
 {
   RC rc = RC::SUCCESS;
-
+  
   vector<unique_ptr<Expression>> &group_by_expressions = logical_oper.group_by_expressions();
   unique_ptr<GroupByPhysicalOperator> group_by_oper;
   if (group_by_expressions.empty()) {
