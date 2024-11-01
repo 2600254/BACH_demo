@@ -116,7 +116,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
     for (size_t j = 0; j < join_relations.size(); ++j) {
       FilterStmt *filter_stmt = nullptr;
       RC          rc =
-          FilterStmt::create(db, table_map[join_relations[j].first], &table_map, relations.conditions[j], filter_stmt);
+          FilterStmt::create(db, table_map[join_relations[j].first], &table_map, tables, relations.conditions[j], filter_stmt);
       if (rc != RC::SUCCESS) {
         LOG_WARN("cannot construct filter stmt");
         return rc;
@@ -161,7 +161,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
 
   // create filter statement in `where` statement
   FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::create(db, default_table, &table_map, select_sql.conditions, filter_stmt);
+  RC          rc          = FilterStmt::create(db, default_table, &table_map, tables, select_sql.conditions, filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
@@ -230,7 +230,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
       return rc;
     }
     RC rc =
-        FilterStmt::create(db, default_table, &table_map, std::move(having_expressions[0].get()), having_filter_stmt);
+        FilterStmt::create(db, default_table, &table_map, tables, std::move(having_expressions[0].get()), having_filter_stmt);
 
     for (auto &project : having_expressions) {
       project->traverse(collect_aggr_exprs);

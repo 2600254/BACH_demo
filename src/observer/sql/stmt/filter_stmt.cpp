@@ -35,7 +35,8 @@ int FilterStmt::implicit_cast_cost(AttrType from, AttrType to)
   return DataType::type_instance(from)->cast_cost(to);
 }
 
-RC FilterStmt::create(Db *db, BaseTable *default_table, std::unordered_map<std::string, BaseTable *> *tables,
+RC FilterStmt::create(Db *db, BaseTable *default_table, std::unordered_map<std::string, BaseTable *> *table_map,
+    const std::vector<BaseTable*>& tables,
       Expression *condition, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
@@ -45,7 +46,7 @@ RC FilterStmt::create(Db *db, BaseTable *default_table, std::unordered_map<std::
     return rc;
   }
 
-  auto check_condition_expr = [&db, &default_table, &tables](Expression *expr) {
+  auto check_condition_expr = [&db, &table_map, &tables, &default_table](Expression *expr) {
     if (expr->type() == ExprType::COMPARISON) {
       ComparisonExpr* cmp_expr = static_cast<ComparisonExpr*>(expr);
       CompOp comp = cmp_expr->comp();
@@ -116,35 +117,37 @@ RC FilterStmt::create(Db *db, BaseTable *default_table, std::unordered_map<std::
       //检查字段是否存在
       FieldExpr* field_expr = static_cast<FieldExpr*>(expr);
 
-      const char *table_name = strlen(field_expr->table_name()) == 0 ? default_table->name() : field_expr->table_name();
-      if(table_name == nullptr){
-        LOG_WARN("no table name");
-        return RC::SCHEMA_TABLE_NOT_EXIST;
-      }
+      // const char *table_name = strlen(field_expr->table_name()) == 0 ? default_table->name() : field_expr->table_name();
+      // if(table_name == nullptr){
+      //   LOG_WARN("no table name");
+      //   return RC::SCHEMA_TABLE_NOT_EXIST;
+      // }
       
-      const char* field_name = field_expr->field_name();
-      if(field_name == nullptr){
-        LOG_WARN("no field name");
-        return RC::SCHEMA_FIELD_NOT_EXIST;
-      }
-      BaseTable* table = tables->find(table_name)->second;
-      if(table == nullptr){
-        LOG_WARN("no such table");
-        return RC::SCHEMA_TABLE_NOT_EXIST;
-      }
-      field_expr->set_table_name(table->name()); //将别名或原名均替换为原名
+      // const char* field_name = field_expr->field_name();
+      // if(field_name == nullptr){
+      //   LOG_WARN("no field name");
+      //   return RC::SCHEMA_FIELD_NOT_EXIST;
+      // }
+      // BaseTable* table = table_map->find(table_name)->second;
+      // if(table == nullptr){
+      //   LOG_WARN("no such table");
+      //   return RC::SCHEMA_TABLE_NOT_EXIST;
+      // }
+      // field_expr->set_table_name(table->name()); //将别名或原名均替换为原名
       
-      const FieldMeta* field = table->table_meta().field(field_name);
-      if(field == nullptr){
-        LOG_WARN("no such field in table");
-        return RC::SCHEMA_FIELD_NOT_EXIST;
-      }
-      field_expr->set_field(Field(table, field));
+      // const FieldMeta* field = table->table_meta().field(field_name);
+      // if(field == nullptr){
+      //   LOG_WARN("no such field in table");
+      //   return RC::SCHEMA_FIELD_NOT_EXIST;
+      // }
+      // field_expr->set_field(Field(table, field));
+
+      return field_expr->check_field(*table_map, tables, default_table, {});
 
     }else if(expr->type() == ExprType::SUBQUERY){
       SubQueryExpr* subquery_expr = static_cast<SubQueryExpr*>(expr);
       //生成子查询的select stmt
-      RC rc = subquery_expr->generate_select_stmt(db, *tables);
+      RC rc = subquery_expr->generate_select_stmt(db, *table_map);
       return rc;
     }
     return RC::SUCCESS;

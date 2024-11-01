@@ -223,6 +223,9 @@ public:
   const char *table_name() const { return table_name_.c_str(); }
   const char *field_name() const { return field_name_.c_str(); }
 
+  const std::string & get_table_name() const { return table_name_; }
+  const std::string & get_field_name() const { return field_name_; }
+
   RC get_column(Chunk &chunk, Column &column) override;
 
   RC get_value(const Tuple &tuple, Value &value) override;
@@ -233,6 +236,10 @@ public:
   }
   
   FieldMeta get_field_meta() const { return *field_.meta(); }
+  
+  RC check_field(const std::unordered_map<std::string, BaseTable *> &table_map,
+    const std::vector<BaseTable *> &tables, BaseTable* default_table = nullptr,
+    const std::unordered_map<std::string, std::string> & table_alias_map = {});
 
 private:
   Field field_;
