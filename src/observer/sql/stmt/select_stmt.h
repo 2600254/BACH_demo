@@ -43,20 +43,22 @@ public:
     {
       join_tables_.swap(other.join_tables_);
       on_conds_.swap(other.on_conds_);
+      alias_.swap(other.alias_);
     }
-    void push_join_table(BaseTable* table, FilterStmt* fu) {
+    void push_join_table(BaseTable *table, FilterStmt *fu, const std::string alias = "")
+    {
       join_tables_.emplace_back(table);
       on_conds_.emplace_back(fu);
+      alias_.emplace_back(alias);
     }
-    const std::vector<BaseTable*>& join_tables() const {
-      return join_tables_;
-    }
-    const std::vector<FilterStmt*>& on_conds() const {
-      return on_conds_;
-    }
+    const std::vector<BaseTable *>  &join_tables() const { return join_tables_; }
+    const std::vector<FilterStmt *> &on_conds() const { return on_conds_; }
+    const std::vector<std::string>  &alias() const { return alias_; }
+
   private:
-    std::vector<BaseTable*> join_tables_;
-    std::vector<FilterStmt*> on_conds_;
+    std::vector<BaseTable *>  join_tables_;
+    std::vector<std::string>  alias_;
+    std::vector<FilterStmt *> on_conds_;
   };
 
 public:
@@ -66,7 +68,8 @@ public:
   StmtType type() const override { return StmtType::SELECT; }
 
 public:
-  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt, const std::unordered_map<std::string, BaseTable *> &parent_table_map = {});
+  static RC create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
+      const std::unordered_map<std::string, BaseTable *> &parent_table_map = {});
 
 public:
   const std::vector<JoinTables> &join_tables() const { return join_tables_; }

@@ -44,9 +44,8 @@ static void wildcard_fields(BaseTable *table, vector<unique_ptr<Expression>> &ex
   }
 }
 
-
-RC ExpressionBinder::bind_unbound_field_expression_orderby(OrderBySqlNode node,
-                                                                std::vector<std::unique_ptr<OrderBySqlNode>> &node_temp)
+RC ExpressionBinder::bind_unbound_field_expression_orderby(
+    OrderBySqlNode node, std::vector<std::unique_ptr<OrderBySqlNode>> &node_temp)
 {
   auto expr = node.expr;
   if (nullptr == expr) {
@@ -85,15 +84,14 @@ RC ExpressionBinder::bind_unbound_field_expression_orderby(OrderBySqlNode node,
   field_expr->set_name(field_name);
 
   OrderBySqlNode *temp = new OrderBySqlNode();
-  temp->expr = field_expr;
-  temp->is_asc = node.is_asc;
+  temp->expr           = field_expr;
+  temp->is_asc         = node.is_asc;
   node_temp.emplace_back(temp);
 
   return RC::SUCCESS;
 }
 
-
-RC ExpressionBinder::bind_expression(Expression* expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_expression(Expression *expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -136,9 +134,9 @@ RC ExpressionBinder::bind_expression(Expression* expr, vector<unique_ptr<Express
       ASSERT(false, "shouldn't be here");
     } break;
 
-    case ExprType::EXPRLIST:{
+    case ExprType::EXPRLIST: {
       return bind_expression_list_expression(expr, bound_expressions);
-    }break;
+    } break;
 
     default: {
       LOG_WARN("unknown expression type: %d", static_cast<int>(expr->type()));
@@ -148,7 +146,7 @@ RC ExpressionBinder::bind_expression(Expression* expr, vector<unique_ptr<Express
   return RC::INTERNAL;
 }
 
-RC ExpressionBinder::bind_star_expression(Expression* expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_star_expression(Expression *expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -159,13 +157,13 @@ RC ExpressionBinder::bind_star_expression(Expression* expr, vector<unique_ptr<Ex
   vector<BaseTable *> tables_to_wildcard;
 
   const char *table_name = star_expr->table_name();
-  std::string alias = star_expr->alias();
-  if(alias.size() > 0){
+  std::string alias      = star_expr->alias();
+  if (alias.size() > 0) {
     LOG_INFO("alias %s is not supported in star expression", alias.c_str());
     return RC::INVALID_ARGUMENT;
   }
   if (!is_blank(table_name) && 0 != strcmp(table_name, "*")) {
-    //如果有具体表名，只对该表进行通配
+    // 如果有具体表名，只对该表进行通配
     BaseTable *table = context_.find_table(table_name);
     if (nullptr == table) {
       LOG_INFO("no such table in from list: %s", table_name);
@@ -185,14 +183,13 @@ RC ExpressionBinder::bind_star_expression(Expression* expr, vector<unique_ptr<Ex
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_field_expression(
-    Expression* field_expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_field_expression(Expression *field_expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
-  if(nullptr == field_expr) {
+  if (nullptr == field_expr) {
     return RC::SUCCESS;
   }
-  BaseTable* table;
-  FieldExpr *fep = static_cast<FieldExpr *>(field_expr);
+  BaseTable  *table;
+  FieldExpr  *fep            = static_cast<FieldExpr *>(field_expr);
   std::string now_table_name = fep->table_name();
   if (now_table_name.size() == 0) {
     if (context_.query_tables().size() == 0) {
@@ -200,7 +197,7 @@ RC ExpressionBinder::bind_field_expression(
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
     table = context_.query_tables()[0];
-  }else{
+  } else {
     table = context_.find_table(now_table_name.c_str());
     if (nullptr == table) {
       LOG_INFO("no such table in from list: %s", now_table_name.c_str());
@@ -218,28 +215,46 @@ RC ExpressionBinder::bind_field_expression(
     return RC::SCHEMA_FIELD_MISSING;
   }
   Field      field(table, table_meta.field(fep->field_name()));
-  FieldExpr* new_field_expr = new FieldExpr(field);
-  new_field_expr->set_name(fep->field_name());
+  FieldExpr *new_field_expr = new FieldExpr(field);
+  if (now_table_name.size() == 0) {
+    new_field_expr->set_name(fep->field_name());
+  } else {
+    std::string tableNameStr(table->name());
+    new_field_expr->set_name(tableNameStr + "." + fep->field_name());
+  }
   new_field_expr->set_alias(fep->alias());
+
+  if (new_field_expr->alias().size() == 0) {
+    if (now_table_name.size() == 0) {
+      new_field_expr->set_alias(fep->field_name());
+    } else {
+      BaseTable *table1 = context_.find_table(now_table_name.c_str());
+      if (nullptr == table1) {
+        std::string tableNameStr(table->name());
+        new_field_expr->set_alias(tableNameStr + "." + fep->field_name());
+      } else {
+        new_field_expr->set_alias(now_table_name + "." + fep->field_name());
+      }
+    }
+  }
+
   bound_expressions.emplace_back(std::move(new_field_expr));
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_value_expression(
-    Expression* value_expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_value_expression(Expression *value_expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   Value value;
-  RC rc = value_expr->try_get_value(value);
-  if(OB_FAIL(rc)){
+  RC    rc = value_expr->try_get_value(value);
+  if (OB_FAIL(rc)) {
     return rc;
   }
-  ValueExpr* new_value_expr = new ValueExpr(value);
+  ValueExpr *new_value_expr = new ValueExpr(value);
   bound_expressions.emplace_back(std::move(new_value_expr));
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_cast_expression(
-    Expression* expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_cast_expression(Expression *expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -270,8 +285,7 @@ RC ExpressionBinder::bind_cast_expression(
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_comparison_expression(
-    Expression* expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_comparison_expression(Expression *expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -318,8 +332,7 @@ RC ExpressionBinder::bind_comparison_expression(
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_conjunction_expression(
-    Expression* expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_conjunction_expression(Expression *expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -354,8 +367,7 @@ RC ExpressionBinder::bind_conjunction_expression(
   return RC::SUCCESS;
 }
 
-RC ExpressionBinder::bind_arithmetic_expression(
-    Expression* expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_arithmetic_expression(Expression *expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
@@ -363,12 +375,12 @@ RC ExpressionBinder::bind_arithmetic_expression(
 
   auto arithmetic_expr = static_cast<ArithmeticExpr *>(expr);
 
-  if(arithmetic_expr->arithmetic_type() == ArithmeticExpr::Type::NEGATIVE){
-    //如果是负数，那么就是0 - value
+  if (arithmetic_expr->arithmetic_type() == ArithmeticExpr::Type::NEGATIVE) {
+    // 如果是负数，那么就是0 - value
     RC rc = arithmetic_expr->neg_to_sub();
-      if(OB_FAIL(rc)) {
-        return rc;
-      }
+    if (OB_FAIL(rc)) {
+      return rc;
+    }
   }
 
   vector<unique_ptr<Expression>> child_bound_expressions;
@@ -406,32 +418,33 @@ RC ExpressionBinder::bind_arithmetic_expression(
     right_expr.reset(right.release());
   }
 
-  if(left_expr->type() == ExprType::VALUE && right_expr->type() == ExprType::VALUE){
-    //如果表达式可以直接计算，则直接计算返回ValueExpr即可
+  if (left_expr->type() == ExprType::VALUE && right_expr->type() == ExprType::VALUE) {
+    // 如果表达式可以直接计算，则直接计算返回ValueExpr即可
     Value left_value;
     Value right_value;
-    if(RC::SUCCESS != left_expr->try_get_value(left_value)){
+    if (RC::SUCCESS != left_expr->try_get_value(left_value)) {
       LOG_WARN("failed to get value from left child");
       return RC::INTERNAL;
     }
-    if(RC::SUCCESS != right_expr->try_get_value(right_value)){
+    if (RC::SUCCESS != right_expr->try_get_value(right_value)) {
       LOG_WARN("failed to get value from right child");
       return RC::INTERNAL;
     }
-    Value result;
-    ArithmeticExpr* arithmetic_expr = static_cast<ArithmeticExpr *>(expr);
-    if(RC::SUCCESS != arithmetic_expr->calc_value(left_value, right_value, result)){
+    Value           result;
+    ArithmeticExpr *arithmetic_expr = static_cast<ArithmeticExpr *>(expr);
+    if (RC::SUCCESS != arithmetic_expr->calc_value(left_value, right_value, result)) {
       LOG_WARN("failed to calculate value");
       return RC::INTERNAL;
     }
-    ValueExpr* value_expr = new ValueExpr(result);
+    ValueExpr             *value_expr = new ValueExpr(result);
     unique_ptr<Expression> value_expr_ptr(value_expr);
     value_expr_ptr->set_name(arithmetic_expr->name());
     value_expr_ptr->set_alias(arithmetic_expr->alias());
     bound_expressions.emplace_back(std::move(value_expr_ptr));
     return RC::SUCCESS;
   }
-  ArithmeticExpr* arithmetic_expr_new = new ArithmeticExpr(arithmetic_expr->arithmetic_type(), std::move(left_expr), std::move(right_expr));
+  ArithmeticExpr *arithmetic_expr_new =
+      new ArithmeticExpr(arithmetic_expr->arithmetic_type(), std::move(left_expr), std::move(right_expr));
   arithmetic_expr_new->set_name(arithmetic_expr->name());
   arithmetic_expr_new->set_alias(arithmetic_expr->alias());
   bound_expressions.emplace_back(std::move(arithmetic_expr_new));
@@ -468,7 +481,7 @@ RC check_aggregate_expression(AggregateExpr &expression)
   }
 
   // 子表达式中不能再包含聚合表达式
-  function<RC(std::unique_ptr<Expression>&)> check_aggregate_expr = [&](unique_ptr<Expression> &expr) -> RC {
+  function<RC(std::unique_ptr<Expression> &)> check_aggregate_expr = [&](unique_ptr<Expression> &expr) -> RC {
     RC rc = RC::SUCCESS;
     if (expr->type() == ExprType::AGGREGATION) {
       LOG_WARN("aggregate expression cannot be nested");
@@ -483,17 +496,16 @@ RC check_aggregate_expression(AggregateExpr &expression)
   return rc;
 }
 
-RC ExpressionBinder::bind_aggregate_expression(
-    Expression*  expr, vector<unique_ptr<Expression>> &bound_expressions)
+RC ExpressionBinder::bind_aggregate_expression(Expression *expr, vector<unique_ptr<Expression>> &bound_expressions)
 {
   if (nullptr == expr) {
     return RC::SUCCESS;
   }
 
-  auto unbound_aggregate_expr = static_cast<UnboundAggregateExpr *>(expr);
-  const char *aggregate_name = unbound_aggregate_expr->aggregate_name();
+  auto                unbound_aggregate_expr = static_cast<UnboundAggregateExpr *>(expr);
+  const char         *aggregate_name         = unbound_aggregate_expr->aggregate_name();
   AggregateExpr::Type aggregate_type;
-  RC rc = AggregateExpr::type_from_string(aggregate_name, aggregate_type);
+  RC                  rc = AggregateExpr::type_from_string(aggregate_name, aggregate_type);
   if (OB_FAIL(rc)) {
     LOG_WARN("invalid aggregate name: %s", aggregate_name);
     return rc;
@@ -520,7 +532,7 @@ RC ExpressionBinder::bind_aggregate_expression(
     }
   }
 
-  AggregateExpr* aggregate_expr = new AggregateExpr(aggregate_type, std::move(child_expr));
+  AggregateExpr *aggregate_expr = new AggregateExpr(aggregate_type, std::move(child_expr));
   aggregate_expr->set_name(unbound_aggregate_expr->name());
   aggregate_expr->set_alias(unbound_aggregate_expr->alias());
   rc = check_aggregate_expression(*aggregate_expr);
@@ -531,13 +543,13 @@ RC ExpressionBinder::bind_aggregate_expression(
   return RC::SUCCESS;
 }
 
-
 RC ExpressionBinder::bind_expression_list_expression(
-    Expression* expr_list_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions){
+    Expression *expr_list_expr, std::vector<std::unique_ptr<Expression>> &bound_expressions)
+{
   if (nullptr == expr_list_expr) {
     return RC::SUCCESS;
   }
-  ExprListExpr* expr_list = static_cast<ExprListExpr *>(expr_list_expr);
+  ExprListExpr                            *expr_list               = static_cast<ExprListExpr *>(expr_list_expr);
   std::vector<std::unique_ptr<Expression>> child_bound_expressions = std::move(expr_list->exprs());
   std::vector<std::unique_ptr<Expression>> list_bound_expressions;
   for (auto &child_expr : child_bound_expressions) {
@@ -546,7 +558,7 @@ RC ExpressionBinder::bind_expression_list_expression(
       return rc;
     }
   }
-  ExprListExpr* expr_list_expr_new = new ExprListExpr(std::move(list_bound_expressions));
+  ExprListExpr *expr_list_expr_new = new ExprListExpr(std::move(list_bound_expressions));
   expr_list_expr_new->set_name(expr_list->name());
   expr_list_expr_new->set_alias(expr_list->alias());
   bound_expressions.emplace_back(std::move(expr_list_expr_new));

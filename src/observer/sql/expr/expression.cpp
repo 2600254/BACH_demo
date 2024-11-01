@@ -38,7 +38,7 @@ RC FieldExpr::get_value(const Tuple &tuple, Value &value)
   if (is_first_) {
     bool &is_first_ref = const_cast<bool &>(is_first_);
     is_first_ref       = false;
-    return tuple.find_cell(TupleCellSpec(table_name_str, field_name()), value, const_cast<int &>(index_));
+    return tuple.find_cell(TupleCellSpec(table_name_str, field_name(), alias().c_str()), value, const_cast<int &>(index_));
   } else {
     return tuple.cell_at(index_, value);
   }

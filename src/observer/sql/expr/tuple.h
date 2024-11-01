@@ -185,7 +185,7 @@ public:
     bitmap_.init(record->data() + null_field->offset(), this->speces_.size());
   }
 
-  void set_schema(const Table *table, const std::vector<FieldMeta> *fields)
+  void set_schema(const Table *table, const std::vector<FieldMeta> *fields, const std::string& alias="")
   {
     table_ = static_cast<BaseTable*>(const_cast<Table*>(table));
     // fix:join当中会多次调用右表的open,open当中会调用set_scheme，从而导致tuple当中会存储
@@ -195,6 +195,8 @@ public:
     for (const FieldMeta &field : *fields) {
       speces_.push_back(new FieldExpr(table_, &field));
     }
+    alias_ = alias;
+
   }
   
   void set_schema(const View *view)
@@ -275,6 +277,14 @@ public:
       return RC::NOTFOUND;
     }
 
+    const std::string alias(spec.alias());
+    if (alias.find('.') != std::string::npos && alias != std::string(table_name) + "." + std::string(field_name)) {
+      // 说明这张表有别名
+      if (alias.substr(0, alias.find('.')) != alias_) {
+        return RC::NOTFOUND;
+      }
+    }
+
     for (size_t i = 0; i < speces_.size(); ++i) {
       const FieldExpr *field_expr = speces_[i];
       const Field     &field      = field_expr->field();
@@ -331,7 +341,8 @@ private:
   const BaseTable *table_ = nullptr;
   std::vector<FieldExpr *> speces_;
   common::Bitmap           bitmap_;
-  
+  std::string              alias_ = "";
+
   // 记录来自不同表的Record的RID
   std::unordered_map<const BaseTable*, RID> tables_rid_;
 };

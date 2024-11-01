@@ -110,7 +110,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
     // construct JoinTables
     JoinTables jt;
     // base relation
-    jt.push_join_table(table_map[relations.base_relation.first], nullptr);
+    jt.push_join_table(table_map[relations.base_relation.first], nullptr, relations.base_relation.second);
 
     const std::vector<pair<string, string>> &join_relations = relations.join_relations;
     for (size_t j = 0; j < join_relations.size(); ++j) {

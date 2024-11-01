@@ -103,51 +103,55 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
 
   const std::vector<SelectStmt::JoinTables> &tables = select_stmt->join_tables();
 
-  auto process_one_table = [this](unique_ptr<LogicalOperator> &prev_oper, BaseTable *table, FilterStmt *fu) {
-    unique_ptr<LogicalOperator> table_get_oper;
-    if (table->is_table()) {
-      unique_ptr<LogicalOperator> table_get(new TableGetLogicalOperator(static_cast<Table*>(table), ReadWriteMode::READ_ONLY));
-      table_get_oper = std::move(table_get);
-    } else {
-      unique_ptr<LogicalOperator> view_get(new ViewGetLogicalOperator(static_cast<View*>(table), ReadWriteMode::READ_ONLY));
-      table_get_oper = std::move(view_get);
-    }
-    unique_ptr<LogicalOperator> predicate_oper;
-    if (nullptr != fu) {
-      if (RC rc = create_plan(fu, predicate_oper); rc != RC::SUCCESS) {
-        LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
-        return rc;
-      }
-    }
-    if (prev_oper == nullptr) {
-      // ASSERT(nullptr == fu, "ERROR!");
-      if (predicate_oper) {
-        static_cast<TableGetLogicalOperator *>(table_get_oper.get())
-            ->set_predicates(std::move(predicate_oper->expressions()));
-      }
-      prev_oper = std::move(table_get_oper);
-    } else {
-      unique_ptr<JoinLogicalOperator> join_oper = std::make_unique<JoinLogicalOperator>();
-      join_oper->add_child(std::move(prev_oper));
-      join_oper->add_child(std::move(table_get_oper));
-      if (predicate_oper) {
-        predicate_oper->add_child(std::move(join_oper));
-        prev_oper = std::move(predicate_oper);
-      } else {
-        prev_oper = std::move(join_oper);
-      }
-    }
-    return RC::SUCCESS;
-  };
+  auto process_one_table =
+      [this](unique_ptr<LogicalOperator> &prev_oper, BaseTable *table, FilterStmt *fu, const std::string &alias) {
+        unique_ptr<LogicalOperator> table_get_oper;
+        if (table->is_table()) {
+          unique_ptr<LogicalOperator> table_get(
+              new TableGetLogicalOperator(static_cast<Table *>(table), ReadWriteMode::READ_ONLY, alias));
+          table_get_oper = std::move(table_get);
+        } else {
+          unique_ptr<LogicalOperator> view_get(
+              new ViewGetLogicalOperator(static_cast<View *>(table), ReadWriteMode::READ_ONLY));
+          table_get_oper = std::move(view_get);
+        }
+        unique_ptr<LogicalOperator> predicate_oper;
+        if (nullptr != fu) {
+          if (RC rc = create_plan(fu, predicate_oper); rc != RC::SUCCESS) {
+            LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+            return rc;
+          }
+        }
+        if (prev_oper == nullptr) {
+          // ASSERT(nullptr == fu, "ERROR!");
+          if (predicate_oper) {
+            static_cast<TableGetLogicalOperator *>(table_get_oper.get())
+                ->set_predicates(std::move(predicate_oper->expressions()));
+          }
+          prev_oper = std::move(table_get_oper);
+        } else {
+          unique_ptr<JoinLogicalOperator> join_oper = std::make_unique<JoinLogicalOperator>();
+          join_oper->add_child(std::move(prev_oper));
+          join_oper->add_child(std::move(table_get_oper));
+          if (predicate_oper) {
+            predicate_oper->add_child(std::move(join_oper));
+            prev_oper = std::move(predicate_oper);
+          } else {
+            prev_oper = std::move(join_oper);
+          }
+        }
+        return RC::SUCCESS;
+      };
 
   unique_ptr<LogicalOperator> outside_prev_oper(nullptr);  // 笛卡尔积
   for (auto &jt : tables) {
     unique_ptr<LogicalOperator> prev_oper(nullptr);  // INNER JOIN
     auto                       &join_tables = jt.join_tables();
     auto                       &on_conds    = jt.on_conds();
+    auto                       &alias       = jt.alias();
     ASSERT(join_tables.size() == on_conds.size(), "ERROR!");
     for (size_t i = 0; i < join_tables.size(); ++i) {
-      if (rc = process_one_table(prev_oper, join_tables[i], on_conds[i]); RC::SUCCESS != rc) {
+      if (rc = process_one_table(prev_oper, join_tables[i], on_conds[i], alias[i]); RC::SUCCESS != rc) {
         return rc;
       }
     }
@@ -259,7 +263,7 @@ RC LogicalPlanGenerator::create_plan(FilterStmt *filter_stmt, unique_ptr<Logical
 
 RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  BaseTable        *table = insert_stmt->base_table();
+  BaseTable    *table = insert_stmt->base_table();
   vector<Value> values(insert_stmt->values(), insert_stmt->values() + insert_stmt->value_amount());
 
   InsertLogicalOperator *insert_operator = new InsertLogicalOperator(table, values);
@@ -269,15 +273,17 @@ RC LogicalPlanGenerator::create_plan(InsertStmt *insert_stmt, unique_ptr<Logical
 
 RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  BaseTable                  *table       = delete_stmt->table();
-  FilterStmt                 *filter_stmt = delete_stmt->filter_stmt();
-  
+  BaseTable  *table       = delete_stmt->table();
+  FilterStmt *filter_stmt = delete_stmt->filter_stmt();
+
   unique_ptr<LogicalOperator> table_get_oper;
   if (table->is_table()) {
-    unique_ptr<LogicalOperator> table_get(new TableGetLogicalOperator(static_cast<Table*>(table), ReadWriteMode::READ_WRITE));
+    unique_ptr<LogicalOperator> table_get(
+        new TableGetLogicalOperator(static_cast<Table *>(table), ReadWriteMode::READ_WRITE));
     table_get_oper = std::move(table_get);
   } else {
-    unique_ptr<LogicalOperator> view_get(new ViewGetLogicalOperator(static_cast<View*>(table), ReadWriteMode::READ_WRITE));
+    unique_ptr<LogicalOperator> view_get(
+        new ViewGetLogicalOperator(static_cast<View *>(table), ReadWriteMode::READ_WRITE));
     table_get_oper = std::move(view_get);
   }
 
@@ -288,7 +294,7 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<Logical
     return rc;
   }
 
-  unique_ptr<LogicalOperator> delete_oper(new DeleteLogicalOperator(static_cast<Table*>(table)));
+  unique_ptr<LogicalOperator> delete_oper(new DeleteLogicalOperator(static_cast<Table *>(table)));
 
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));
@@ -303,20 +309,22 @@ RC LogicalPlanGenerator::create_plan(DeleteStmt *delete_stmt, unique_ptr<Logical
 
 RC LogicalPlanGenerator::create_plan(UpdateStmt *update_stmt, std::unique_ptr<LogicalOperator> &logical_operator)
 {
-  BaseTable             *table       = update_stmt->table();
+  BaseTable         *table       = update_stmt->table();
   FilterStmt        *filter_stmt = update_stmt->filter_stmt();
   std::vector<Field> fields;
   for (int i = table->table_meta().sys_field_num(); i < table->table_meta().field_num(); i++) {
     const FieldMeta *field_meta = table->table_meta().field(i);
     fields.push_back(Field(table, field_meta));
   }
-  
+
   unique_ptr<LogicalOperator> base_table_get_oper;
   if (table->is_table()) {
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(static_cast<Table*>(table), ReadWriteMode::READ_WRITE));
+    unique_ptr<LogicalOperator> table_get_oper(
+        new TableGetLogicalOperator(static_cast<Table *>(table), ReadWriteMode::READ_WRITE));
     base_table_get_oper = std::move(table_get_oper);
   } else {
-    unique_ptr<LogicalOperator> view_get_oper(new ViewGetLogicalOperator(static_cast<View*>(table), ReadWriteMode::READ_WRITE));
+    unique_ptr<LogicalOperator> view_get_oper(
+        new ViewGetLogicalOperator(static_cast<View *>(table), ReadWriteMode::READ_WRITE));
     base_table_get_oper = std::move(view_get_oper);
   }
 
