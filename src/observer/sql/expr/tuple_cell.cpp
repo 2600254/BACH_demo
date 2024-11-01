@@ -44,4 +44,8 @@ TupleCellSpec::TupleCellSpec(const char *alias)
 }
 
 TupleCellSpec::TupleCellSpec(const string &alias) : alias_(alias)
-{}
+{
+  if (!alias.empty()){
+    alias_ = alias;
+  }
+}
