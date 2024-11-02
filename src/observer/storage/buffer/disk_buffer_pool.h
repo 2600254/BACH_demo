@@ -36,6 +36,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/buffer/frame.h"
 #include "storage/buffer/page.h"
 #include "storage/buffer/buffer_pool_log.h"
+#include "common/lang/lruk_cache.h"
 
 class BufferPoolManager;
 class DiskBufferPool;
@@ -152,10 +153,12 @@ private:
   };
 
   using FrameLruCache  = common::LruCache<FrameId, Frame *, BPFrameIdHasher>;
+  using FrameLruKCache = common::LruKCache<2, FrameId, Frame *, BPFrameIdHasher>;
   using FrameAllocator = common::MemPoolSimple<Frame>;
 
   mutex          lock_;
-  FrameLruCache  frames_;
+  // FrameLruCache  frames_;
+  FrameLruKCache frames_;
   FrameAllocator allocator_;
 };
 

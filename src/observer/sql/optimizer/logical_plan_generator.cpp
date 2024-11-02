@@ -183,6 +183,19 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
 
     last_oper = std::move(predicate_oper);
   }
+  
+  unique_ptr<LogicalOperator> orderby_oper;
+  rc = create_plan(select_stmt->orderby_stmt(), orderby_oper);
+  if (OB_FAIL(rc)) {
+    LOG_WARN("failed to create orderby logical plan. rc=%s", strrc(rc));
+    return rc;
+  }
+  if (orderby_oper) {
+    if (last_oper) {
+      orderby_oper->add_child(std::move(last_oper));
+    }
+    last_oper = std::move(orderby_oper);
+  }
 
   unique_ptr<LogicalOperator> group_by_oper;
   rc = create_group_by_plan(select_stmt, group_by_oper);
@@ -211,19 +224,6 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
       having_oper->add_child(std::move(last_oper));
     }
     last_oper = std::move(having_oper);
-  }
-
-  unique_ptr<LogicalOperator> orderby_oper;
-  rc = create_plan(select_stmt->orderby_stmt(), orderby_oper);
-  if (OB_FAIL(rc)) {
-    LOG_WARN("failed to create orderby logical plan. rc=%s", strrc(rc));
-    return rc;
-  }
-  if (orderby_oper) {
-    if (last_oper) {
-      orderby_oper->add_child(std::move(last_oper));
-    }
-    last_oper = std::move(orderby_oper);
   }
 
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(std::move(select_stmt->query_expressions())));

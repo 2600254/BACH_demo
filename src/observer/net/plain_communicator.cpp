@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "net/buffered_writer.h"
 #include "session/session.h"
 #include "sql/expr/tuple.h"
+#include <chrono>
 
 PlainCommunicator::PlainCommunicator()
 {
