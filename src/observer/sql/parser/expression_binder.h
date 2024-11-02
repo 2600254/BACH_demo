@@ -26,22 +26,18 @@ class BinderContext
 public:
   BinderContext()          = default;
   virtual ~BinderContext() = default;
-
-  bool add_table(std::string table_name, BaseTable *table)
-  {
+  bool add_table(std::string table_name, BaseTable *table) {
     // 如果表名已经存在，不再添加,别名重复时不覆盖，以当前作用域为主
-    bool ret = true;
-    if (table_map_.find(table_name) != table_map_.end()) {
+    if(table_map_.find(table_name) != table_map_.end()){
       LOG_WARN("table %s already exists", table_name.c_str());
-      ret = false;
-    } else {
-      table_map_[table_name] = table;
+      return false;
     }
-    if (ret) {
+    table_map_[table_name] = table; 
+    if(table_set_.find(table) == table_set_.end()){
       table_set_.insert(table);
       query_tables_.push_back(table);
     }
-    return ret;
+    return true;
   }
 
   BaseTable *find_table(const char *table_name) const;
