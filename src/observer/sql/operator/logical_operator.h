@@ -33,6 +33,7 @@ See the Mulan PSL v2 for more details. */
 enum class LogicalOperatorType
 {
   CALC,
+  CREATE_TABLE,
   TABLE_GET,   ///< 从表中获取数据
   VIEW_GET,
   PREDICATE,   ///< 过滤，就是谓词

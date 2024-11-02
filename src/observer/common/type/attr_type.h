@@ -12,6 +12,10 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 
+static constexpr int MAX_TEXT_LENGTH = 65535;
+
+static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, -1, 8, MAX_TEXT_LENGTH, -1, 4 };
+
 /**
  * @brief 属性的类型
  * @details AttrType 枚举列出了属性的各种数据类型。
