@@ -31,7 +31,19 @@ public:
 
   bool equals(const TupleCellSpec &other) const
   {
-    return table_name_ == other.table_name_ && field_name_ == other.field_name_ && alias_ == other.alias_;
+    std::string this_table_name  = std::string(table_name());
+    std::string other_table_name = std::string(other.table_name());
+    std::string this_field_name  = std::string(field_name());
+    std::string other_field_name = std::string(other.field_name());
+    std::string this_alias_name = std::string(alias());
+    std::string other_alias_name = std::string(other.alias());
+
+    if (other_alias_name.find('.') == std::string::npos && this_alias_name.find('.') != std::string::npos){
+      other_alias_name = other_table_name + "." + other_alias_name;
+    }
+
+    return this_table_name == other_table_name && this_field_name == other_field_name && this_alias_name == other_alias_name;
+    // return this_table_name == other_table_name && this_field_name == other_field_name;
   }
 
 private:
