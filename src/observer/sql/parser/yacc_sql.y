@@ -246,6 +246,7 @@ bool exp2value(Expression *exp, Value &value){
 %type <sql_node>            command_wrapper
 %type <boolean>             unique_option
 %type <boolean>             null_option
+%type <boolean>             as_option
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -426,7 +427,52 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         free($8);
       }
     }
+    | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE as_option select_stmt storage_format
+    {
+      $$ = $9;
+      $$->flag = SCF_CREATE_TABLE;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+
+      std::vector<AttrInfoSqlNode> *src_attrs = $6;
+      if (src_attrs != nullptr) {
+        create_table.attr_infos.swap(*src_attrs);
+        delete src_attrs;
+      }
+      create_table.attr_infos.emplace_back(*$5);
+      std::reverse(create_table.attr_infos.begin(), create_table.attr_infos.end());
+      delete $5;
+      if ($10!= nullptr) {
+        create_table.storage_format = $10;
+        free($10);
+      }
+    }
+    | CREATE TABLE ID as_option select_stmt storage_format
+    {
+      $$ = $5;
+      $$->flag = SCF_CREATE_TABLE;
+      CreateTableSqlNode &create_table = $$->create_table;
+      create_table.relation_name = $3;
+      free($3);
+      if ($6!= nullptr) {
+        create_table.storage_format = $6;
+        free($6);
+      }
+    }
     ;
+
+as_option:
+    /* empty */
+    {
+      $$ = false;
+    }
+    | AS
+    {
+      $$ = true;
+    }
+    ;
+
 attr_def_list:
     /* empty */
     {

@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 class View;
 class Stmt;
 class CalcStmt;
+class CreateTableStmt;
 class SelectStmt;
 class FilterStmt;
 class InsertStmt;
@@ -47,7 +48,7 @@ private:
   RC create_plan(DeleteStmt *delete_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(UpdateStmt *update_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(ExplainStmt *explain_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
-
+  RC create_plan(CreateTableStmt *create_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
   RC create_group_by_plan(SelectStmt *select_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(OrderByStmt *groupby_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
 };

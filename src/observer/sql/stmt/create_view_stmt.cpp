@@ -7,7 +7,8 @@
 #include "common/types.h"
 #include "common/value.h"
 
-static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, 4, 8, 65535, 4, -1 };
+static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, -1, 8, MAX_TEXT_LENGTH, -1, 4 };
+
 
 CreateViewStmt::CreateViewStmt(bool allow_write, 
                               const std::string view_name,  

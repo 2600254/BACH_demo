@@ -30,6 +30,7 @@ class JoinLogicalOperator;
 class CalcLogicalOperator;
 class GroupByLogicalOperator;
 class OrderByLogicalOperator;
+class CreateTableLogicalOperator;
 
 /**
  * @brief 物理计划生成器
@@ -59,6 +60,7 @@ private:
   static RC create_plan(CalcLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   static RC create_plan(GroupByLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   static RC create_plan(OrderByLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
+  static RC create_plan(CreateTableLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   static RC create_vec_plan(ProjectLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   static RC create_vec_plan(TableGetLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   static RC create_vec_plan(GroupByLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
