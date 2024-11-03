@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/sql_debug.h"
 #include "sql/stmt/select_stmt.h"
 #include "sql/expr/expression.h"
+static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, -1, 8, MAX_TEXT_LENGTH, -1, 4 };
 
 RC CreateTableStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *&stmt, SelectSqlNode &select_sql)
 {
@@ -35,6 +36,10 @@ RC CreateTableStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt 
     Stmt                        *select_stmt = nullptr;
     std::vector<AttrInfoSqlNode> attr_infos;
     RC                           rc = SelectStmt::create(db, select_sql, select_stmt);
+    if (rc!= RC::SUCCESS) {
+      LOG_ERROR("failed to create select stmt. rc=%d:%s", rc, strrc(rc));
+      return rc;
+    }
     for (std::unique_ptr<Expression> &attr_expr : static_cast<SelectStmt *>(select_stmt)->query_expressions()) {
       AttrInfoSqlNode attr_info;
       if (0 != attr_expr->alias().length()) {

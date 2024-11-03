@@ -90,3 +90,12 @@ SELECT * FROM Update_select_t1;
 UPDATE Update_select_t1 SET col1=2, col2=(select Update_select_t2.col2 from Update_select_t2 where Update_select_t2.id=1) WHERE id=1;
 
 UPDATE Update_select_t1 SET t_name='1TW', col2=7 WHERE id=1;
+
+
+
+create table t (id int);
+insert into t values (1);
+insert into t values (2);
+insert into t values (3);
+
+create table t1 as select t0.id from t t0;

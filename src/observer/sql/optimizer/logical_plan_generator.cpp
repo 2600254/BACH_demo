@@ -60,7 +60,7 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
     case StmtType::CREATE_TABLE: {
       CreateTableStmt *create_table_stmt = static_cast<CreateTableStmt *>(stmt);
       rc                                 = create_plan(create_table_stmt, logical_operator);
-    }
+    } break;
 
     case StmtType::SELECT: {
       SelectStmt *select_stmt = static_cast<SelectStmt *>(stmt);
