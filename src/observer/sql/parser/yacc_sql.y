@@ -243,6 +243,7 @@ bool exp2value(Expression *exp, Value &value){
 %type <sql_node>            command_wrapper
 %type <boolean>             unique_option
 %type <boolean>             null_option
+%type <boolean>             as_option
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -423,7 +424,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         free($8);
       }
     }
-    | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE AS select_stmt storage_format
+    | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE as_option select_stmt storage_format
     {
       $$ = $9;
       $$->flag = SCF_CREATE_TABLE;
@@ -444,7 +445,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         free($10);
       }
     }
-    | CREATE TABLE ID AS select_stmt storage_format
+    | CREATE TABLE ID as_option select_stmt storage_format
     {
       $$ = $5;
       $$->flag = SCF_CREATE_TABLE;
@@ -457,6 +458,18 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       }
     }
     ;
+
+as_option:
+    /* empty */
+    {
+      $$ = false;
+    }
+    | AS
+    {
+      $$ = true;
+    }
+    ;
+
 attr_def_list:
     /* empty */
     {
