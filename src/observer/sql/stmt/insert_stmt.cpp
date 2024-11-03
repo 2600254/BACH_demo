@@ -63,8 +63,8 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
       }
     }
     if (AttrType::VECTORS == field_type && AttrType::VECTORS == value_type) {
-      if (MAX_VECTOR_LENGTH < values[i].length()) {
-        LOG_WARN("Vector length:%d, over max_length 65535", values[i].length());
+      if (MAX_VECTOR_DIM < values[i].dim()) {
+        LOG_WARN("Vector dim:%d, over max_dim 16000", values[i].dim());
         return RC::INVALID_ARGUMENT;
       }
     }

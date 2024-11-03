@@ -377,7 +377,7 @@ protected:
   bool            readonly_         = false;    ///< 当前的操作是否都是只读的
   PageHeader     *page_header_      = nullptr;  ///< 当前页面上页面头
   char           *bitmap_           = nullptr;  ///< 当前页面上record分配状态信息bitmap内存起始位置
-}
+};
 
 /**
  * @brief 负责处理行存页面中各种操作

@@ -71,8 +71,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
       if (val.is_null() && !update_field->nullable()){
         valid = false;
       } else if (AttrType::VECTORS == update_field->type() && AttrType::VECTORS == val.attr_type()) {
-        if (MAX_VECTOR_LENGTH < val.length()) {
-          LOG_WARN("Vector length:%d, over max_length 65535", val.length());
+        if (MAX_VECTOR_DIM < val.dim()) {
+          LOG_WARN("Vector dim:%d, over max_dim 16000", val.dim());
           return RC::INVALID_ARGUMENT;
         }
         valid = true;

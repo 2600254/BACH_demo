@@ -22,7 +22,6 @@ See the Mulan PSL v2 for more details. */
 
 static constexpr int MAX_TEXT_LENGTH = 65535;
 static constexpr int MAX_VECTOR_DIM = 16000;
-static constexpr int MAX_VECTOR_LENGTH = 16000;
 
 /**
  * @brief 属性的值
@@ -133,6 +132,7 @@ public:
   const char *data() const;
 
   int      length() const { return length_; }
+  int       dim() const { return value_.vector_value_.dim; }
   AttrType attr_type() const { return attr_type_; }
 
 public:

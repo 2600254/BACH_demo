@@ -591,6 +591,29 @@ RC Table::init_text_handler(const char *base_dir)
   return rc;
 }
 
+RC Table::init_vector_handler(const char *base_dir)
+{
+  RC rc = RC::SUCCESS;
+  std::string vector_file = table_vector_file(base_dir, table_meta_.name());
+
+  bool exist = false;
+  int fd = ::open(vector_file.c_str(), O_RDONLY, 0600);
+  if (fd > 0) exist = true;
+  close(fd);
+  
+  if (exist) {
+    BufferPoolManager &bpm = db_->buffer_pool_manager();
+    RC                 rc  = bpm.open_file(db_->log_handler(), vector_file.c_str(), vector_buffer_pool_);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Failed to open disk buffer pool for file:%s. rc=%d:%s", vector_file.c_str(), rc, strrc(rc));
+      vector_buffer_pool_->close_file();
+      vector_buffer_pool_ = nullptr;
+      return rc;
+    }
+  }
+  return rc;
+}
+
 RC Table::get_record_scanner(RecordFileScanner &scanner, Trx *trx, ReadWriteMode mode)
 {
   RC rc = scanner.open_scan(this, *data_buffer_pool_, trx, db_->log_handler(), mode, nullptr);
