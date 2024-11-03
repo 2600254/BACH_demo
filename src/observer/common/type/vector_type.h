@@ -17,8 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/data_type.h"
 
 struct Vector{
-  int dim;
-  float *data;
+  int dim; //维度
+  float *data; //数据
 };
 
 /**

@@ -169,6 +169,7 @@ bool exp2value(Expression *exp, Value &value){
   AttrInfoSqlNode *                          attr_info;
   Expression *                               expression;
   std::vector<Expression*> *                 expression_list;
+  std::vector<float> *                       float_list;
   UpdateKV *                                 update_kv;
   std::vector<UpdateKV> *                    update_kv_list;
   std::vector<Value> *                       value_list;
@@ -214,6 +215,7 @@ bool exp2value(Expression *exp, Value &value){
 %type <relation_list>       idx_col_list
 %type <expression>          expression
 %type <expression_list>     expression_list
+%type <float_list>          float_list
 %type <expression_list>     group_by
 %type <expression>          having
 %type <update_kv_list>      update_kv_list
@@ -639,11 +641,52 @@ value:
       free(tmp);
       free($1);
     }
+    | LBRACK float_list RBRACK {
+      $$ = new Value(std::move($2));
+      delete $2;
+    }
     |NULL_T{
       $$ = new Value();
       $$->set_null();
     }
     ;
+
+float_list:
+    /* empty */
+    {
+      $$ = new vector<float>();
+    }
+    | NUMBER
+    {
+      $$ = new vector<float>();
+      $$->emplace_back((float)$1);
+    }
+    | FLOAT
+    {
+      $$ = new vector<float>();
+      $$->emplace_back((float)$1);
+    }
+    | NUMBER COMMA float_list
+    {
+      if($3 == nullptr){
+        $$ = new vector<float>();
+      }else{
+        $$ = $3;
+      }
+      $$->emplace($$->begin(), (float)$1);
+
+    }
+    | FLOAT COMMA float_list
+    {
+      if($3 == nullptr){
+        $$ = new vector<float>();
+      }else{
+        $$ = $3;
+      }
+      $$->emplace($$->begin(), (float)$1);
+    }
+    ;
+
 storage_format:
     /* empty */
     {
