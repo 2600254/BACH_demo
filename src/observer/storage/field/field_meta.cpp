@@ -45,14 +45,15 @@ RC FieldMeta::init(
   }
 
   if (AttrType::UNDEFINED == attr_type || attr_offset < 0 || attr_len <= 0) {
-    LOG_WARN("Invalid argument. name=%s, attr_type=%d, attr_offset=%d, attr_len=%d",
+    LOG_INFO("Invalid argument. name=%s, attr_type=%d, attr_offset=%d, attr_len=%d",
               name, attr_type, attr_offset, attr_len);
     return RC::INVALID_ARGUMENT;
   }
 
   name_        = name;
   attr_type_   = attr_type;
-  attr_len_    = attr_len;
+  vector_dim_  = attr_len;
+  attr_len_    = 4 * vector_dim_;
   attr_offset_ = attr_offset;
   visible_     = visible;
   field_id_    = field_id;
@@ -79,6 +80,9 @@ int FieldMeta::len() const { return attr_len_; }
 bool FieldMeta::visible() const { return visible_; }
 
 int FieldMeta::field_id() const { return field_id_; }
+
+int FieldMeta::vector_dim() const {return vector_dim_; }
+
 
 bool FieldMeta::nullable() const { return nullable_; }
 

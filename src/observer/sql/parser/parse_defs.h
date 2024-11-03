@@ -168,7 +168,7 @@ struct AttrInfoSqlNode
 {
   AttrType    type;      ///< Type of attribute
   std::string name;      ///< Attribute name
-  size_t      length;    ///< Length of attribute
+  size_t      length;    ///< Length of attribute,vector时表示维度
   bool        nullable;  ///< 是否允许为空
 };
 

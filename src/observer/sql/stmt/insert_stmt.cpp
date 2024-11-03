@@ -39,6 +39,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
 
   const Value     *values        = inserts.values.data();
   const int        value_num     = static_cast<int>(inserts.values.size());
+  Value           *value_list = new Value[value_num]; //存储处理后的value 
   const TableMeta &table_meta    = table->table_meta();
   const int        field_num     = table_meta.field_num() - table_meta.sys_field_num();
   const int        sys_field_num = table_meta.sys_field_num();
@@ -62,15 +63,27 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
         return RC::INVALID_ARGUMENT;
       }
     }
-    if (AttrType::VECTORS == field_type && AttrType::VECTORS == value_type) {
-      if (MAX_VECTOR_DIM < values[i].dim()) {
-        LOG_WARN("Vector dim:%d, over max_dim 16000", values[i].dim());
+    if(field_type == AttrType::VECTORS && value_type == AttrType::CHARS){
+      int dim = 0;
+      string str = values[i].get_string();
+      for(int j = 0; j < values[i].length(); j++){
+        if(str[j] == ','){
+          dim++;
+        }
+      }
+      dim++;
+      if(dim > MAX_VECTOR_DIM){
+        LOG_WARN("vector dimension:%d, over max_dimension 16000", dim);
         return RC::INVALID_ARGUMENT;
       }
+      Value vec_value(str.c_str(), values[i].length());
+      value_list[i] = vec_value;
+    }else{
+      value_list[i] = values[i];
     }
   }
 
   // everything alright
-  stmt = new InsertStmt(table, values, value_num);
+  stmt = new InsertStmt(table, value_list, value_num);
   return RC::SUCCESS;
 }

@@ -44,6 +44,7 @@ public:
   int         len() const;
   bool        visible() const;
   int         field_id() const;
+  int         vector_dim() const;
   bool        nullable() const;
 
 public:
@@ -66,4 +67,5 @@ protected:
   bool     visible_;
   int      field_id_;
   bool     nullable_;
+  int      vector_dim_;
 };

@@ -54,6 +54,31 @@ RC CharType::cast_to(const Value &val, AttrType type, Value &result) const
     case AttrType::FLOATS:{
       result.set_float(atof(val.value_.pointer_value_));
     }break;
+    case AttrType::VECTORS: {
+      if(val.value_.pointer_value_[0] != '[' || val.value_.pointer_value_[val.length_ - 1] != ']'){
+        LOG_WARN("invalid vector format: %s", val.value_.pointer_value_);
+        return RC::INVALID_ARGUMENT;
+      }
+      Vector vec;
+      vec.dim = 0;
+      for(int i = 0; i < val.length_; i++){
+        if(val.value_.pointer_value_[i] == ','){
+          vec.dim++;
+        }
+      }
+      vec.dim++;
+      vec.data = new float[vec.dim];
+      int start = 0;
+      for(int i = 0; i < vec.dim; i++){
+        int end = start;
+        while(val.value_.pointer_value_[end] != ',' && end < val.length_){
+          end++;
+        }
+        vec.data[i] = atof(val.value_.pointer_value_ + start);
+        start = end + 1;
+      }
+      result.set_vector(vec);
+    }break;
     case AttrType::NULLS:{
       return RC::SUCCESS;
     }break;

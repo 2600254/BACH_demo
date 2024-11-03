@@ -29,7 +29,31 @@ Value::Value(bool val) { set_boolean(val); }
 
 Value::Value(int64_t val) { set_boolean(val); }
 
-Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
+Value::Value(const char *s, int len /*= 0*/) {
+  if(len > 0 && s[0] == '[' && s[len - 1] == ']'){
+    Vector vec;
+    vec.dim = 0;
+    for(int i = 0; i < len; i++){
+      if(s[i] == ','){
+        vec.dim++;
+      }
+    }
+    vec.dim++;
+    vec.data = new float[vec.dim];
+    int start = 1;
+    for(int i = 0; i < vec.dim; i++){
+      int end = start;
+      while(s[end] != ',' && s[end] != ']'){
+        end++;
+      }
+      vec.data[i] = atof(s + start);
+      start = end + 1;
+    }
+    set_vector(vec);
+  }else{
+    set_string(s, len);
+  }
+}
 
 Value::Value(const float *data, int dim){
   Vector vec;
@@ -40,6 +64,17 @@ Value::Value(const float *data, int dim){
   }
   set_vector(vec);
 }
+
+Value::Value(std::unique_ptr<std::vector<float>> data){
+  Vector vec;
+  vec.dim = data->size();
+  vec.data = new float[vec.dim];
+  for (int i = 0; i < vec.dim; i++){
+    vec.data[i] = data.get()->at(i);
+  }
+  set_vector(vec);
+}
+
 
 Value::Value(const Value &other)
 {
@@ -214,7 +249,10 @@ void Value::set_string(const char *s, int len /*= 0*/)
 }
 
 void Value::set_vector(Vector vec){
+  attr_type_ = AttrType::VECTORS;
   value_.vector_value_ = vec;
+  length_ = sizeof(float) * vec.dim; //设置存储长度
+  own_data_ = true; // 自己管理内存
 }
 
 void Value::set_value(const Value &value)
@@ -262,6 +300,9 @@ const char *Value::data() const
   switch (attr_type_) {
     case AttrType::CHARS: {
       return value_.pointer_value_;
+    } break;
+    case AttrType::VECTORS: {
+      return (const char *)value_.vector_value_.data;
     } break;
     default: {
       return (const char *)&value_;

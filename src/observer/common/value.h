@@ -58,6 +58,7 @@ public:
   explicit Value(int64_t val);
   explicit Value(const char *s, int len = 0);
   explicit Value(const float *data, int dim = 0);
+  explicit Value(std::unique_ptr<std::vector<float>> data);
 
   Value(const Value &other);
   Value(Value &&other);
