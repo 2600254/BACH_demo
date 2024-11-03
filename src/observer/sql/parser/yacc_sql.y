@@ -105,6 +105,8 @@ bool exp2value(Expression *exp, Value &value){
         UPDATE
         LBRACE
         RBRACE
+        LBRACK
+        RBRACK
         COMMA
         TRX_BEGIN
         TRX_COMMIT
@@ -112,6 +114,7 @@ bool exp2value(Expression *exp, Value &value){
         INT_T
         DATE_T
         TEXT_T
+        VECTOR_T
         STRING_T
         FLOAT_T
         HELP
@@ -512,6 +515,7 @@ type:
     | FLOAT_T  { $$ = static_cast<int>(AttrType::FLOATS); }
     | DATE_T   { $$ = static_cast<int>(AttrType::DATES); }
     | TEXT_T   { $$ = static_cast<int>(AttrType::TEXTS); }
+    | VECTOR_T   { $$ = static_cast<int>(AttrType::VECTORS); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
     INSERT INTO ID VALUES LBRACE value value_list RBRACE 

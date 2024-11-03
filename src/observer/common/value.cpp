@@ -31,6 +31,16 @@ Value::Value(int64_t val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) { set_string(s, len); }
 
+Value::Value(const float *data, int dim){
+  Vector vec;
+  vec.dim = dim;
+  vec.data = new float[dim];
+  for (int i = 0; i < dim; i++){
+    vec.data[i] = data[i];
+  }
+  set_vector(vec);
+}
+
 Value::Value(const Value &other)
 {
   this->attr_type_ = other.attr_type_;
@@ -203,6 +213,10 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
+void Value::set_vector(Vector vec){
+  value_.vector_value_ = vec;
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
@@ -221,6 +235,9 @@ void Value::set_value(const Value &value)
     case AttrType::BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
+    case AttrType::VECTORS: {
+      set_vector(value.get_vector());
+    }break;
     case AttrType::NULLS: {
       set_null();
     } break;
@@ -335,6 +352,10 @@ float Value::get_float() const
 int64_t Value::get_long() const
 {
   return value_.long_;
+}
+
+Vector Value::get_vector() const {
+  return value_.vector_value_;
 }
 
 string Value::get_string() const { return this->to_string(); }

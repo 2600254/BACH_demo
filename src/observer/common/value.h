@@ -18,8 +18,10 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/memory.h"
 #include "common/type/attr_type.h"
 #include "common/type/data_type.h"
+#include "common/type/vector_type.h"
 
 static constexpr int MAX_TEXT_LENGTH = 65535;
+static constexpr int MAX_VECTOR_DIM = 16000;
 
 /**
  * @brief 属性的值
@@ -39,6 +41,7 @@ public:
   friend class CharType;
   friend class LongType;
   friend class TextType;
+  friend class VectorType;
 
   Value() = default;
 
@@ -54,6 +57,7 @@ public:
   explicit Value(bool val);
   explicit Value(int64_t val);
   explicit Value(const char *s, int len = 0);
+  explicit Value(const float *data, int dim = 0);
 
   Value(const Value &other);
   Value(Value &&other);
@@ -140,11 +144,13 @@ public:
   string  get_string() const;
   bool    get_boolean() const;
   int64_t get_long() const;
+  Vector  get_vector() const;
   void set_int(int val);
 
 private:
   void set_float(float val);
   void set_long(int64_t val);
+  void set_vector(Vector val);
   void set_string(const char *s, int len = 0);
   void set_string_from_other(const Value &other);
 
@@ -159,6 +165,7 @@ private:
     bool    bool_value_;
     int64_t long_;
     char   *pointer_value_;
+    Vector  vector_value_;
   } value_ = {.int_value_ = 0};
 
   /// 是否申请并占有内存, 目前对于 CHARS 类型 own_data_ 为true, 其余类型 own_data_ 为false

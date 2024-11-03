@@ -112,6 +112,7 @@ ROLLBACK                                RETURN_TOKEN(TRX_ROLLBACK);
 INT                                     RETURN_TOKEN(INT_T);
 DATE                                    RETURN_TOKEN(DATE_T);
 TEXT                                    RETURN_TOKEN(TEXT_T);
+VECTOR                                  RETURN_TOKEN(VECTOR_T);
 CHAR                                    RETURN_TOKEN(STRING_T);
 FLOAT                                   RETURN_TOKEN(FLOAT_T);
 LOAD" "DATA                             RETURN_TOKEN(LOAD_DATA);
@@ -143,6 +144,8 @@ HAVING                                  RETURN_TOKEN(HAVING);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
+"["                                     RETURN_TOKEN(LBRACK);
+"]"                                     RETURN_TOKEN(RBRACK);
 
 ","                                     RETURN_TOKEN(COMMA);
 "="                                     RETURN_TOKEN(EQ);
