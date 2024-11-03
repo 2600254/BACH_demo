@@ -70,7 +70,13 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
       const Value &val = static_cast<const ValueExpr *>(update_sql.expressions[i])->get_value();
       if (val.is_null() && !update_field->nullable()){
         valid = false;
-      } else if (update_field->type() == val.attr_type() || (val.is_null() && update_field->nullable())) {
+      } else if (AttrType::VECTORS == update_field->type() && AttrType::VECTORS == val.attr_type()) {
+        if (MAX_VECTOR_LENGTH < val.length()) {
+          LOG_WARN("Vector length:%d, over max_length 65535", val.length());
+          return RC::INVALID_ARGUMENT;
+        }
+        valid = true;
+      }else if (update_field->type() == val.attr_type() || (val.is_null() && update_field->nullable())) {
         if (update_field->type() == AttrType::CHARS && update_field->len() < val.length()) {
           LOG_WARN("update chars with longer value.");
         } else {

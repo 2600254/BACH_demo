@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/type/data_type.h"
 
 static constexpr int MAX_TEXT_LENGTH = 65535;
+static constexpr int MAX_VECTOR_LENGTH = 16000;
 
 /**
  * @brief 属性的值
@@ -39,6 +40,7 @@ public:
   friend class CharType;
   friend class LongType;
   friend class TextType;
+  friend class VectorType;
 
   Value() = default;
 

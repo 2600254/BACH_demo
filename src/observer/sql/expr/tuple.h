@@ -254,7 +254,24 @@ public:
         }
         cell.set_data(text, length);
         free(text);
-      } else {
+      } else if (AttrType::VECTORS == field_meta->type())
+      {
+        if (!table_->is_table()) {
+          LOG_WARN("can not read text from view");
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+        cell.set_type(AttrType::VECTORS);
+        int64_t offset = *(int64_t *)(record_->data() + field_meta->offset());
+        int64_t length = *(int64_t *)(record_->data() + field_meta->offset() + sizeof(int64_t));
+        char   *vector   = (char *)malloc(length);
+        rc = static_cast<const Table*>(table_)->read_vector(offset, length, vector);
+        if (RC::SUCCESS != rc) {
+          LOG_WARN("Failed to read text from table, rc=%s", strrc(rc));
+          return rc;
+        }
+        cell.set_data(vector, length);
+        free(vector);
+      }else {
         cell.set_type(field_meta->type());
         cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
       }

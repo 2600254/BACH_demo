@@ -366,7 +366,16 @@ RC UpdatePhysicalOperator::construct_new_record(Table *table, Record &old_record
           return rc;
         }
         memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));       
-      } else {
+      }else if (AttrType::VECTORS == field_meta.type()) {
+        int64_t position[2];
+        position[1] = value->length();
+        rc = table->write_vector(position[0], position[1], value->data());
+        if (rc != RC::SUCCESS) {
+          LOG_WARN("Failed to write text into table, rc=%s", strrc(rc));
+          return rc;
+        }
+        memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));       
+      }  else {
         size_t copy_len = std::min(value->length()+1, field_meta.len());
         memcpy(tmp_record_data_ + field_meta.offset(), value->data(), copy_len);   
       }
@@ -376,7 +385,10 @@ RC UpdatePhysicalOperator::construct_new_record(Table *table, Record &old_record
       } else if (AttrType::TEXTS == field_meta.type()) {
         old_value.emplace_back(AttrType::LONGS, old_record.data() + field_meta.offset(), sizeof(int64_t));
         old_value.emplace_back(AttrType::LONGS, old_record.data() + field_meta.offset() + sizeof(int64_t), sizeof(int64_t));
-      } else {
+      } else if (AttrType::VECTORS == field_meta.type()) {
+        old_value.emplace_back(AttrType::LONGS, old_record.data() + field_meta.offset(), sizeof(int64_t));
+        old_value.emplace_back(AttrType::LONGS, old_record.data() + field_meta.offset() + sizeof(int64_t), sizeof(int64_t));
+      }else {
         old_value.emplace_back(field_meta.type(), old_record.data() + field_meta.offset(), field_meta.len());
       }
     }
@@ -428,6 +440,10 @@ RC UpdatePhysicalOperator::construct_old_record(Table *table, Record &updated_re
       // 旧值不是NULL
       old_null_bitmap.clear_bit(field_val_map[i].first);
       if (AttrType::TEXTS == field_meta.type()) {
+        memcpy(tmp_record_data_ + field_meta.offset(), value->data(), sizeof(int64_t));
+        value = &old_value[val_idx++];
+        memcpy(tmp_record_data_ + field_meta.offset() + sizeof(int64_t), value->data(), sizeof(int64_t));        
+      }else if (AttrType::VECTORS == field_meta.type()) {
         memcpy(tmp_record_data_ + field_meta.offset(), value->data(), sizeof(int64_t));
         value = &old_value[val_idx++];
         memcpy(tmp_record_data_ + field_meta.offset() + sizeof(int64_t), value->data(), sizeof(int64_t));        
