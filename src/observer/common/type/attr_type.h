@@ -30,6 +30,7 @@ enum class AttrType
   BOOLEANS,  ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
   LONGS,          ///< Int64
   TEXTS,          ///< text类型，最大65535字节
+  VECTORS,         ///< vector类型 最大维度16000维
   MAXTYPE,   ///< 请在 UNDEFINED 与 MAXTYPE 之间增加新类型
   NULLS,     ///< 空值类型
 };
