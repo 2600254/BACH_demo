@@ -79,7 +79,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
       Value vec_value(str.c_str(), values[i].length());
       value_list[i] = vec_value;
     }else{
-      value_list[i].set_value(values[i]);
+      value_list[i] = values[i];
     }
   }
 
