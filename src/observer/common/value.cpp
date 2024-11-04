@@ -258,6 +258,26 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
 }
 
+void Value::set_vector(const float *s, int len /*= 0*/){
+ 
+  reset();
+  attr_type_ = AttrType::CHARS;
+  if (s == nullptr) {
+    value_.vector_value_.data = nullptr;
+    value_.vector_value_.dim = 0;
+  }else{
+    own_data_ = true;
+    Vector vec;
+    vec.dim = len/sizeof(float);
+    LOG_INFO("vec.dim:%d", vec.dim);
+    LOG_INFO("len:%d", len);
+    vec.data = new float[vec.dim];
+    memcpy(vec.data, s, len);
+    set_vector(vec);
+  }
+}
+
+
 void Value::set_vector(Vector vec){
   attr_type_ = AttrType::VECTORS;
   value_.vector_value_ = vec;

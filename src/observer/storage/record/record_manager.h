@@ -323,6 +323,62 @@ protected:
   char           *bitmap_           = nullptr;  ///< 当前页面上record分配状态信息bitmap内存起始位置
 };
 
+class VectorPageHandler
+{
+public:
+  VectorPageHandler();
+  ~VectorPageHandler();
+
+  /**
+   * @brief 初始化
+   */
+  RC init(DiskBufferPool &buffer_pool, PageNum page_num, bool readonly);
+
+  /**
+   * @brief 对一个新的页面做初始化，初始化关于该页面记录信息的页头PageHeader
+   * @param record_size 设置为固定值64字节
+   */
+  RC init_empty_page(DiskBufferPool &buffer_pool, PageNum page_num, int record_size = BP_VECTOR_SLOT_SIZE);
+
+  /**
+   * @brief 操作结束后做的清理工作，比如释放页面、解锁
+   */
+  RC cleanup();
+
+  /**
+   * @brief 插入一条记录
+   *
+   * @param data 要插入的记录
+   * @param rid  如果插入成功，通过这个参数返回插入的位置
+   */
+  RC insert_vector(const char *data, RID *rid);
+
+  /**
+   * @brief 更新一条记录
+   * @param rid 要更新的vector的起始位置
+   * @param rec 新的vector数据
+   */
+  RC update_vector(RID *rid, char *rec);
+
+  /**
+   * @brief 删除指定的vector
+   */
+  RC delete_vector(const RID *rid);
+
+  /**
+   * @brief 获取指定位置的vector数据
+   * @param rec 存放返回数据的内存空间
+   */
+  RC get_vector(const RID *rid, char *rec);
+
+protected:
+  DiskBufferPool *disk_buffer_pool_ = nullptr;  ///< 当前操作的buffer pool(文件)
+  Frame          *frame_            = nullptr;  ///< 当前操作页面关联的frame(frame的更多概念可以参考buffer pool和frame)
+  bool            readonly_         = false;    ///< 当前的操作是否都是只读的
+  PageHeader     *page_header_      = nullptr;  ///< 当前页面上页面头
+  char           *bitmap_           = nullptr;  ///< 当前页面上record分配状态信息bitmap内存起始位置
+};
+
 /**
  * @brief 负责处理行存页面中各种操作
  * @ingroup RecordManager

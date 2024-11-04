@@ -68,6 +68,9 @@ RC FieldMeta::init(
   if (AttrType::TEXTS == attr_type) {
     attr_len_ = TEXT_FIELD_LENGTH;
   }
+  if (AttrType::VECTORS == attr_type) {
+    attr_len_ = VECTOR_FIELD_LENGTH;
+  }
 
   LOG_INFO("Init a field with name=%s", name);
   return RC::SUCCESS;

@@ -133,6 +133,7 @@ public:
   const char *data() const;
 
   int      length() const { return length_; }
+  int       dim() const { return value_.vector_value_.dim; }
   AttrType attr_type() const { return attr_type_; }
 
 public:
@@ -148,6 +149,7 @@ public:
   Vector  get_vector() const;
   void set_int(int val);
 
+  void set_vector(const float *s, int len = 0);
 private:
   void set_float(float val);
   void set_long(int64_t val);
