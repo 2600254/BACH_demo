@@ -41,10 +41,10 @@ public:
 
   RC multiply(const Value &left, const Value &right, Value &result) const override;
 
-  RC l2_distance(const Value &left, const Value &right, Value &result) const;
+  RC l2_distance(const Value &left, const Value &right, Value &result) const override;
 
-  RC cosine_distance(const Value &left, const Value &right, Value &result) const;
+  RC cosine_distance(const Value &left, const Value &right, Value &result) const override;
 
-  RC inner_product(const Value &left, const Value &right, Value &result) const;
+  RC inner_product(const Value &left, const Value &right, Value &result) const override;
 
 };

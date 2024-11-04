@@ -593,6 +593,9 @@ public:
     MUL,
     DIV,
     NEGATIVE,
+    L2_DISTANCE,
+    COSINE_DISTANCE,
+    INNER_PRODUCT,
   };
 
 public:

@@ -74,6 +74,21 @@ public:
   virtual RC negative(const Value &val, Value &result) const { return RC::UNSUPPORTED; }
 
   /**
+   * @brief 计算两个向量的 L2 距离，并将结果保存到 result 中
+   */
+  virtual RC l2_distance(const Value &left, const Value &right, Value &result) const { return RC::UNSUPPORTED; }
+
+  /**
+   * @brief 计算两个向量的余弦距离，并将结果保存到 result 中
+   */
+  virtual RC cosine_distance(const Value &left, const Value &right, Value &result) const { return RC::UNSUPPORTED; }
+
+  /**
+   * @brief 计算两个向量的内积，并将结果保存到 result 中
+   */
+  virtual RC inner_product(const Value &left, const Value &right, Value &result) const { return RC::UNSUPPORTED; }
+
+  /**
    * @brief 将 val 转换为 type 类型，并将结果保存到 result 中
    */
   virtual RC cast_to(const Value &val, AttrType type, Value &result) const { return RC::UNSUPPORTED; }

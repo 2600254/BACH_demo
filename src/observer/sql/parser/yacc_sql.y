@@ -111,6 +111,9 @@ bool exp2value(Expression *exp, Value &value){
         TRX_BEGIN
         TRX_COMMIT
         TRX_ROLLBACK
+        L2_DISTANCE_T
+        COSINE_DISTANCE_T
+        INNER_PRODUCT_T
         INT_T
         DATE_T
         TEXT_T
@@ -956,6 +959,15 @@ expression:
       }
       $$->set_name(token_name(sql_string, &@$));
       delete $2;
+    }
+    | L2_DISTANCE_T LBRACE expression COMMA expression RBRACE {
+      $$ = create_arithmetic_expression(ArithmeticExpr::Type::L2_DISTANCE, $3, $5, sql_string, &@$);
+    }
+    | COSINE_DISTANCE_T LBRACE expression COMMA expression RBRACE {
+      $$ = create_arithmetic_expression(ArithmeticExpr::Type::COSINE_DISTANCE, $3, $5, sql_string, &@$);
+    }
+    | INNER_PRODUCT_T LBRACE expression COMMA expression RBRACE {
+      $$ = create_arithmetic_expression(ArithmeticExpr::Type::INNER_PRODUCT, $3, $5, sql_string, &@$);
     }
     ;
 
