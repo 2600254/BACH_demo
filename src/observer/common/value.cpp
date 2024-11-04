@@ -68,12 +68,12 @@ Value::Value(const float *data, int dim){
   set_vector(vec);
 }
 
-Value::Value(std::unique_ptr<std::vector<float>> data){
+Value::Value(std::vector<float>* data){
   Vector vec;
   vec.dim = data->size();
   vec.data = new float[vec.dim];
   for (int i = 0; i < vec.dim; i++){
-    vec.data[i] = data.get()->at(i);
+    vec.data[i] = data->at(i);
   }
   set_vector(vec);
 }

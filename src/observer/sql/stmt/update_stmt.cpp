@@ -85,7 +85,9 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
         }
         LOG_INFO("str:%s, dim:%d", str.c_str(), dim);
         Value vec_value(str.c_str(), val.length());
-        values.emplace_back(new ValueExpr(vec_value));
+        Expression *vec_expr = new ValueExpr(vec_value);
+        fields.emplace_back(*update_field);
+        values.emplace_back(vec_expr);
         valid = true;
         continue;
       }else if (update_field->type() == val.attr_type() || (val.is_null() && update_field->nullable())) {
@@ -115,6 +117,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
       return RC::INVALID_ARGUMENT;
     }
 
+    fields.emplace_back(*update_field);
     values.emplace_back(update_sql.expressions[i]);
   }
 
