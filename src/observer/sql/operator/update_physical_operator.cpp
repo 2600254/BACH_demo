@@ -369,6 +369,9 @@ RC UpdatePhysicalOperator::construct_new_record(Table *table, Record &old_record
       }else if (AttrType::VECTORS == field_meta.type()) {
         int64_t position[2];
         position[1] = value->get_vector().dim * sizeof(float);
+        for (int i = 0; i < value->get_vector().dim; i++) {
+          LOG_INFO("vector[%d]: %f", i, value->get_vector().data[i]);
+        }
         rc = table->write_vector(position[0], position[1], value->get_vector().data);
         if (rc != RC::SUCCESS) {
           LOG_WARN("Failed to write vector into table, rc=%s", strrc(rc));
