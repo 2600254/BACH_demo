@@ -30,6 +30,9 @@ Value::Value(bool val) { set_boolean(val); }
 Value::Value(int64_t val) { set_boolean(val); }
 
 Value::Value(const char *s, int len /*= 0*/) {
+  if(len == 0 && s != nullptr){
+    len = strlen(s);
+  }
   if(len > 0 && s[0] == '[' && s[len - 1] == ']'){
     Vector vec;
     vec.dim = 0;
