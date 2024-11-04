@@ -525,7 +525,7 @@ RC Table::read_text(int64_t offset, int64_t length, char *data) const
 }
 
 
-RC Table::write_vector(int64_t &offset, int64_t length, const char *data)
+RC Table::write_vector(int64_t &offset, int64_t length, const float *data)
 {
   RC rc = RC::SUCCESS;
   rc = vector_buffer_pool_->append_vector_data(offset, length, data);
