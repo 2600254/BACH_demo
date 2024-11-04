@@ -426,13 +426,23 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
-  }
-  if (AttrType::TEXTS == field->type()) {
+  }else if (AttrType::TEXTS == field->type()) {
     // 需要将value中的字符串插入到文件中，然后将offset、length写入record
     int64_t position[2];
     position[1] = value.length();
     text_buffer_pool_->append_data(position[0], position[1], value.data());
     memcpy(record_data + field->offset(), position, 2 * sizeof(int64_t));
+  }else if(field->type() == AttrType::VECTORS){
+    int dim = field->vector_dim();
+    Vector vector = value.get_vector();
+    if(dim != vector.dim){
+      LOG_WARN("vector dim is not equal to field dim. field dim:%d, vector dim:%d", dim, vector.dim);
+      return RC::INVALID_ARGUMENT;
+    }
+    for(int i = 0; i < dim; i++){
+      LOG_INFO("vector[%d]:%f", i, vector.data[i]);
+    }
+    memcpy(record_data + field->offset(), vector.data, vector.dim * sizeof(float));
   } else {
     memcpy(record_data + field->offset(), value.data(), copy_len);
   }
