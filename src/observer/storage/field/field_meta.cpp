@@ -62,9 +62,7 @@ RC FieldMeta::init(
   visible_     = visible;
   field_id_    = field_id;
   nullable_    = nullable;
-  if(vector_dim_ > 0){
-    ASSERT(attr_len_ == sizeof(float) * vector_dim_, "vector dim is not equal to field dim. field dim:%d, vector dim:%d", attr_len_, vector_dim_);
-  }
+
   if (AttrType::TEXTS == attr_type) {
     attr_len_ = TEXT_FIELD_LENGTH;
   }
