@@ -2387,7 +2387,7 @@ yyreduce:
   case 68: /* value: LBRACK float_list RBRACK  */
 #line 647 "yacc_sql.y"
                                {
-      (yyval.value) = new Value(std::move((yyvsp[-1].float_list)));
+      (yyval.value) = new Value((yyvsp[-1].float_list));
       delete (yyvsp[-1].float_list);
     }
 #line 2394 "yacc_sql.cpp"
