@@ -269,8 +269,6 @@ void Value::set_vector(const float *s, int len /*= 0*/){
     own_data_ = true;
     Vector vec;
     vec.dim = len/sizeof(float);
-    LOG_INFO("vec.dim:%d", vec.dim);
-    LOG_INFO("len:%d", len);
     vec.data = new float[vec.dim];
     memcpy(vec.data, s, len);
     set_vector(vec);

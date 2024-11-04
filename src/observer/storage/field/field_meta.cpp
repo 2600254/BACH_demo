@@ -69,6 +69,9 @@ RC FieldMeta::init(
   if (AttrType::VECTORS == attr_type) {
     attr_len_ = VECTOR_FIELD_LENGTH;
   }
+  if (vector_dim > MAX_VECTOR_DIM) {
+    return RC::INVALID_ARGUMENT;
+  }
 
   LOG_INFO("Init a field with name=%s", name);
   return RC::SUCCESS;

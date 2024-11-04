@@ -70,12 +70,24 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
       const Value &val = static_cast<const ValueExpr *>(update_sql.expressions[i])->get_value();
       if (val.is_null() && !update_field->nullable()){
         valid = false;
-      } else if (AttrType::VECTORS == update_field->type() && AttrType::VECTORS == val.attr_type()) {
-        if (MAX_VECTOR_DIM < val.dim()) {
-          LOG_WARN("Vector dim:%d, over max_dim 16000", val.dim());
+      } else if (AttrType::VECTORS == update_field->type() && AttrType::CHARS == val.attr_type()) {
+        int dim = 0;
+        string str = val.get_string();
+        for(int j = 0; j < val.length(); j++){
+          if(str[j] == ','){
+            dim++;
+          }
+        }
+        dim++;
+        if(dim > MAX_VECTOR_DIM){
+          LOG_WARN("vector dimension:%d, over max_dimension 16000", dim);
           return RC::INVALID_ARGUMENT;
         }
+        LOG_INFO("str:%s, dim:%d", str.c_str(), dim);
+        Value vec_value(str.c_str(), val.length());
+        values.emplace_back(new ValueExpr(vec_value));
         valid = true;
+        continue;
       }else if (update_field->type() == val.attr_type() || (val.is_null() && update_field->nullable())) {
         if (update_field->type() == AttrType::CHARS && update_field->len() < val.length()) {
           LOG_WARN("update chars with longer value.");
@@ -103,7 +115,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt)
       return RC::INVALID_ARGUMENT;
     }
 
-    fields.emplace_back(*update_field);
     values.emplace_back(update_sql.expressions[i]);
   }
 
