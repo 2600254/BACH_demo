@@ -181,6 +181,13 @@ void Value::set_data(char *data, int length)
       value_.bool_value_ = *(int *)data != 0;
       length_            = length;
     } break;
+    case AttrType::VECTORS:{
+      Vector vec;
+      vec.dim = length / sizeof(float);
+      vec.data = new float[vec.dim];
+      memcpy(vec.data, data, length);
+      set_vector(vec);
+    }break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;

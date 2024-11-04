@@ -442,7 +442,7 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     for(int i = 0; i < dim; i++){
       LOG_INFO("vector[%d]:%f", i, vector.data[i]);
     }
-    memcpy(record_data + field->offset(), vector.data, vector.dim * sizeof(float));
+    memcpy(record_data + field->offset(), vector.data, sizeof(float) * dim);
   } else {
     memcpy(record_data + field->offset(), value.data(), copy_len);
   }
