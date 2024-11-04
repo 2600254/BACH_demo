@@ -644,7 +644,7 @@ value:
       free(tmp);
       free($1);
     }
-    | LBRACK float_list RBRACK {
+    |LBRACK float_list RBRACK {
       $$ = new Value(std::move($2));
       delete $2;
     }
