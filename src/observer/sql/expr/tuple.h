@@ -263,13 +263,13 @@ public:
         cell.set_type(AttrType::VECTORS);
         int64_t offset = *(int64_t *)(record_->data() + field_meta->offset());
         int64_t length = *(int64_t *)(record_->data() + field_meta->offset() + sizeof(int64_t));
-        char   *vector   = (char *)malloc(length);
+        float   *vector   = (float *)malloc(length);
         rc = static_cast<const Table*>(table_)->read_vector(offset, length, vector);
         if (RC::SUCCESS != rc) {
           LOG_WARN("Failed to read text from table, rc=%s", strrc(rc));
           return rc;
         }
-        cell.set_data(vector, length);
+        cell.set_vector(vector, length);
         free(vector);
       }else {
         cell.set_type(field_meta->type());

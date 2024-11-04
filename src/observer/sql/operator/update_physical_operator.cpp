@@ -368,8 +368,8 @@ RC UpdatePhysicalOperator::construct_new_record(Table *table, Record &old_record
         memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));       
       }else if (AttrType::VECTORS == field_meta.type()) {
         int64_t position[2];
-        position[1] = value->length();
-        rc = table->write_vector(position[0], position[1], value->data());
+        position[1] = value->get_vector().dim * sizeof(float);
+        rc = table->write_vector(position[0], position[1], value->get_vector().data);
         if (rc != RC::SUCCESS) {
           LOG_WARN("Failed to write text into table, rc=%s", strrc(rc));
           return rc;

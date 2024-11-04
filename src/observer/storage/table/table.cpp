@@ -468,7 +468,8 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
-  }else if (AttrType::TEXTS == field->type()) {
+  }
+  if (AttrType::TEXTS == field->type()) {
     // 需要将value中的字符串插入到文件中，然后将offset、length写入record
     int64_t position[2];
     position[1] = value.length();
@@ -484,8 +485,13 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     for(int i = 0; i < dim; i++){
       LOG_INFO("vector[%d]:%f", i, vector.data[i]);
     }
-    memcpy(record_data + field->offset(), vector.data, vector.dim * sizeof(float));
+    int64_t position[2];
+    position[1] = vector.dim * sizeof(float);
+    vector_buffer_pool_->append_vector_data(position[0], position[1], vector.data);
+    memcpy(record_data + field->offset(), position, 2 * sizeof(int64_t));
+    // memcpy(record_data + field->offset(), vector.data, vector.dim * sizeof(float));
   } else {
+    LOG_INFO("1 value data():%s", value.data());
     memcpy(record_data + field->offset(), value.data(), copy_len);
   }
   return RC::SUCCESS;
@@ -522,7 +528,7 @@ RC Table::read_text(int64_t offset, int64_t length, char *data) const
 RC Table::write_vector(int64_t &offset, int64_t length, const char *data)
 {
   RC rc = RC::SUCCESS;
-  rc = vector_buffer_pool_->append_data(offset, length, data);
+  rc = vector_buffer_pool_->append_vector_data(offset, length, data);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to append text into disk_buffer_pool, rc=%s", strrc(rc));
     offset = -1;
@@ -531,7 +537,7 @@ RC Table::write_vector(int64_t &offset, int64_t length, const char *data)
   return rc;
 }
 
-RC Table::read_vector(int64_t offset, int64_t length, char *data) const
+RC Table::read_vector(int64_t offset, int64_t length, float *data) const
 {
   RC rc = RC::SUCCESS;
   if (0 > offset || 0 > length) {
@@ -539,7 +545,7 @@ RC Table::read_vector(int64_t offset, int64_t length, char *data) const
     return RC::INVALID_ARGUMENT;
   }
 
-  rc = vector_buffer_pool_->get_data(offset, length, data);
+  rc = vector_buffer_pool_->get_vector_data(offset, length, data);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to get text from disk_buffer_pool, rc=%s", strrc(rc));
   }

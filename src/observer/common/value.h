@@ -149,6 +149,7 @@ public:
   Vector  get_vector() const;
   void set_int(int val);
 
+  void set_vector(const float *s, int len = 0);
 private:
   void set_float(float val);
   void set_long(int64_t val);

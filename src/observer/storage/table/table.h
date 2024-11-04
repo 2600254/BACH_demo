@@ -119,8 +119,8 @@ public:
   RC write_text(int64_t &offset, int64_t length, const char *data);
   RC read_text(int64_t offset, int64_t length, char *data) const;
 
-  RC write_vector(int64_t &offset, int64_t length, const char *data);
-  RC read_vector(int64_t offset, int64_t length, char *data) const;
+  RC write_vector(int64_t &offset, int64_t length, const float *data);
+  RC read_vector(int64_t offset, int64_t length, float *data) const;
 
 public:
   virtual int32_t table_id() const { return table_meta_.table_id(); }

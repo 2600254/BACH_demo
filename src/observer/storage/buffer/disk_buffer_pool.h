@@ -270,7 +270,9 @@ public:
 
   // 用于text数据的读写
   RC append_data(int64_t &offset, int64_t length, const char *data);
+  RC append_vector_data(int64_t &offset, int64_t length, const float *data);
   RC get_data(int64_t offset, int64_t length, char *data);
+  RC get_vector_data(int64_t offset, int64_t length, float *data);
 
   /**
    * 刷新页面到磁盘
