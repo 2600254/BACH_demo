@@ -331,7 +331,7 @@ RC UpdatePhysicalOperator::construct_new_record(Table *table, Record &old_record
   memcpy(tmp_record_data_, old_record.data(), table->table_meta().record_size());
 
   std::vector<Value> old_value;
-    std::vector<std::pair<size_t, size_t>> &field_value_map = tables_field_value_[table];
+  std::vector<std::pair<size_t, size_t>> &field_value_map = tables_field_value_[table];
   for (size_t i = 0; i < field_value_map.size(); i++) {
     LOG_INFO("field_value_map[%d]: %d-%d", i, field_value_map[i].first, field_value_map[i].second);
     size_t field_idx = field_value_map[i].first;
@@ -371,7 +371,7 @@ RC UpdatePhysicalOperator::construct_new_record(Table *table, Record &old_record
         position[1] = value->get_vector().dim * sizeof(float);
         rc = table->write_vector(position[0], position[1], value->get_vector().data);
         if (rc != RC::SUCCESS) {
-          LOG_WARN("Failed to write text into table, rc=%s", strrc(rc));
+          LOG_WARN("Failed to write vector into table, rc=%s", strrc(rc));
           return rc;
         }
         memcpy(tmp_record_data_ + field_meta.offset(), position, 2 * sizeof(int64_t));       

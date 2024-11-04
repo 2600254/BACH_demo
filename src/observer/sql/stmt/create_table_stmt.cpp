@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "event/sql_debug.h"
 #include "sql/stmt/select_stmt.h"
 #include "sql/expr/expression.h"
-static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, -1, 8, MAX_TEXT_LENGTH, -1, 4 };
+static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, MAX_VECTOR_DIM*sizeof(float), -1, 8, MAX_TEXT_LENGTH, -1, 4 };
 
 RC CreateTableStmt::create(Db *db, const CreateTableSqlNode &create_table, Stmt *&stmt, SelectSqlNode &select_sql)
 {

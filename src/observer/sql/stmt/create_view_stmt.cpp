@@ -7,7 +7,7 @@
 #include "common/types.h"
 #include "common/value.h"
 
-static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, -1, 8, MAX_TEXT_LENGTH, -1, 4 };
+static int ATTR_TYPE_LENGTH[] = { -1, 4, 4, 4, 4, MAX_VECTOR_DIM*sizeof(float), -1, 8, MAX_TEXT_LENGTH, -1, 4 };
 
 
 CreateViewStmt::CreateViewStmt(bool allow_write, 

@@ -294,9 +294,7 @@ public:
       return RC::NOTFOUND;
     }
 
-    LOG_INFO("1 table_name=%s, field_name=%s, alias=%s", table_name, field_name, alias_.c_str());
     const std::string alias(spec.alias());
-    LOG_INFO("2 table_name=%s, field_name=%s, alias=%s", table_name, field_name, alias_.c_str());
     if (alias.find('.') != std::string::npos && alias != std::string(table_name) + "." + std::string(field_name)) {
       // 说明这张表有别名
       if (alias.substr(0, alias.find('.')) != alias_) {
