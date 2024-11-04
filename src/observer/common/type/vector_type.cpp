@@ -32,7 +32,7 @@ RC VectorType::to_string(const Value &val, string &result) const
   for (int i = 0; i < vector.dim; i++) {
     result += common::double_to_str(vector.data[i]);
     if (i != vector.dim - 1) {
-      result += ", ";
+      result += ",";
     }
   }
   result += "]";
