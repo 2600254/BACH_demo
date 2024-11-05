@@ -130,7 +130,7 @@ RC VectorType::cosine_distance(const Value &left, const Value &right, Value &res
         left_sum += left_vector.data[i] * left_vector.data[i];
         right_sum += right_vector.data[i] * right_vector.data[i];
     }
-    result.set_float(1.0 - sum / (sqrt(left_sum) * sqrt(right_sum)));
+    result.set_float(fabs(1 - sum / (sqrt(left_sum) * sqrt(right_sum))));
     return RC::SUCCESS;
 }
 
