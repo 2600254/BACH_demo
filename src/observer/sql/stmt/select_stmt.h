@@ -80,6 +80,7 @@ public:
   std::vector<std::unique_ptr<Expression>> &ex_agg_expressions() { return ex_agg_expressions_; }
   OrderByStmt                              *orderby_stmt() const { return orderby_stmt_; }
   FilterStmt                               *having_stmt() const { return having_stmt_; }
+  int                                       limit() const { return limit_; }
 
 private:
   std::vector<std::unique_ptr<Expression>> query_expressions_;
@@ -89,4 +90,5 @@ private:
   OrderByStmt                             *orderby_stmt_ = nullptr;
   std::vector<std::unique_ptr<Expression>> group_by_;
   std::vector<std::unique_ptr<Expression>> ex_agg_expressions_;
+  int                                      limit_ = -1;
 };

@@ -96,7 +96,12 @@ public:
 
   void set_parent_tuple(const Tuple *tuple);
 
+  void set_limit(int limit) { limit_ = limit; }
+
+  int limit() const { return limit_; }
+
 protected:
   std::vector<std::unique_ptr<PhysicalOperator>> children_;
   const Tuple                                   *parent_tuple_ = nullptr;
+  int                                          limit_ = -1;
 };

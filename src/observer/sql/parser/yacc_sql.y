@@ -91,6 +91,7 @@ bool exp2value(Expression *exp, Value &value){
         CREATE
         DROP
         GROUP
+        LIMIT
         TABLE
         TABLES
         INDEX
@@ -223,6 +224,7 @@ bool exp2value(Expression *exp, Value &value){
 %type <expression_list>     expression_list
 %type <float_list>          float_list
 %type <expression_list>     group_by
+%type <number>              limit_clause
 %type <expression>          having
 %type <update_kv_list>      update_kv_list
 %type <update_kv>           update_kv
@@ -957,12 +959,6 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->selection.limit = $10;
     }
     ;
-limit_clause
-    {
-      $$ = -1;
-    }| LIMIT NUMBER{
-      $$ = (int) $2;
-    }
 
 calc_stmt:
     CALC expression_list
@@ -1138,6 +1134,16 @@ group_by:
     }
     | GROUP BY expression_list {
       $$ = $3;
+    }
+    ;
+
+limit_clause:
+    /* empty */
+    {
+      $$ = -1;
+    }
+    | LIMIT NUMBER {
+      $$ = (int)$2;
     }
     ;
 

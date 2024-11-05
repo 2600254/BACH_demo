@@ -353,6 +353,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
   }
 
   oper = std::move(project_operator);
+  oper->set_limit(project_oper.limit());
 
   LOG_TRACE("create a project physical operator");
   return rc;
