@@ -68,7 +68,7 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
     case SCF_EXPLAIN: {
       return ExplainStmt::create(db, sql_node.explain, stmt);
     }
-
+    case SCF_CREATE_VECTOR_INDEX:
     case SCF_CREATE_INDEX: {
       return CreateIndexStmt::create(db, sql_node.create_index, stmt);
     }

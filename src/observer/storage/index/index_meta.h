@@ -19,6 +19,7 @@ See the Mulan PSL v2 for more details. */
 
 class TableMeta;
 class FieldMeta;
+class VectorIdxProp;
 
 namespace Json {
 class Value;
@@ -35,7 +36,7 @@ class IndexMeta
 public:
   IndexMeta() = default;
 
-  RC init(const char *name, bool unique, const std::vector<const FieldMeta*> &fields);
+  RC init(const char *name, bool unique, const std::vector<const FieldMeta*> &fields, const std::vector<VectorIdxProp> &vector_idx_props);
 
 public:
   const char *name() const;
@@ -52,4 +53,5 @@ protected:
   bool unique_;        // unique index or not
   std::string name_;   // index's name
   std::vector<std::string> field_;  // field's name
+  std::vector<VectorIdxProp> vector_idx_props_;
 };

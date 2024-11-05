@@ -106,6 +106,7 @@ struct SelectSqlNode
   std::vector<Expression *>     group_by;              ///< group by clause
   std::vector<OrderBySqlNode>   orderbys;              ///< attributes in order clause
   Expression                   *having_conditions = nullptr;
+  int                          limit = -1;
 
   void deep_copy(const SelectSqlNode &src);
 };
@@ -193,6 +194,12 @@ struct DropTableSqlNode
   std::string relation_name;  ///< 要删除的表名
 };
 
+struct VectorIdxProp
+{
+  std::string attr_name;
+  std::string attr_value;
+};
+
 /**
  * @brief 描述一个create index语句
  * @ingroup SQLParser
@@ -201,11 +208,12 @@ struct DropTableSqlNode
  */
 struct CreateIndexSqlNode
 {
-  bool                     is_unique;       ///< 是否唯一索引
-  std::string              index_name;      ///< Index name
-  std::string              relation_name;   ///< Relation name
-  std::string              attribute_name;  ///< Attribute name
-  std::vector<std::string> attr_names;
+  bool                       is_unique;       ///< 是否唯一索引
+  std::string                index_name;      ///< Index name
+  std::string                relation_name;   ///< Relation name
+  std::string                attribute_name;  ///< Attribute name
+  std::vector<std::string>   attr_names;
+  std::vector<VectorIdxProp> vector_idx_props;
 };
 
 /**
@@ -316,6 +324,7 @@ enum SqlCommandFlag
   SCF_EXIT,
   SCF_EXPLAIN,
   SCF_SET_VARIABLE,  ///< 设置变量
+  SCF_CREATE_VECTOR_INDEX
 };
 /**
  * @brief 表示一个SQL语句

@@ -144,6 +144,8 @@ IS                                      RETURN_TOKEN(IS);
 IN                                      RETURN_TOKEN(IN);
 EXISTS                                  RETURN_TOKEN(EXISTS);
 HAVING                                  RETURN_TOKEN(HAVING);
+WITH                                    RETURN_TOKEN(WITH);
+LIMIT                                   RETURN_TOKEN(LIMIT);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);

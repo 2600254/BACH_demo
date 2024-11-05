@@ -59,6 +59,7 @@ enum class PhysicalOperatorType
   AGGREGATE_VEC,
   EXPR_VEC,
   CREATE_TABLE,
+  VECTOR_IDNEX_SCAN,
 };
 
 /**
@@ -93,9 +94,9 @@ public:
 
   std::vector<std::unique_ptr<PhysicalOperator>> &children() { return children_; }
 
-  void set_parent_tuple(const Tuple* tuple);
+  void set_parent_tuple(const Tuple *tuple);
 
 protected:
   std::vector<std::unique_ptr<PhysicalOperator>> children_;
-  const Tuple* parent_tuple_ = nullptr;
+  const Tuple                                   *parent_tuple_ = nullptr;
 };

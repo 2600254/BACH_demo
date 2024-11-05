@@ -160,6 +160,7 @@ bool exp2value(Expression *exp, Value &value){
         NULL_T
         IS
         HAVING
+        WITH
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -186,6 +187,8 @@ bool exp2value(Expression *exp, Value &value){
   int                                        number;
   float                                      floats;
   bool                                       boolean;
+  VectorIdxProp *                            vidx_prop;
+  std::vector<VectorIdxProp> *               vidx_prop_list;
 }
 
 %token <number> NUMBER
@@ -254,7 +257,8 @@ bool exp2value(Expression *exp, Value &value){
 %type <boolean>             as_option
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
-
+%type <vidx_prop>           vector_idx_prop
+%type <vidx_prop_list>      vector_idx_prop_list
 %left OR
 %left AND
 %left EQ LT GT LE GE NE
@@ -371,7 +375,85 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       free($6);
       free($8);
     }
+    | CREATE VECTOR_T INDEX ID ON ID LBRACE ID RBRACE WITH LBRACE vector_idx_prop vector_idx_prop_list RBRACE
+    {
+      $$ = new ParsedSqlNode(SCF_CREATE_VECTOR_INDEX);
+      CreateIndexSqlNode &create_vector_index = $$->create_index;
+      create_vector_index.index_name = $4;
+      create_vector_index.relation_name = $6;
+      create_vector_index.attr_names.push_back($8);
+      if ($13!= nullptr) {
+        create_vector_index.vector_idx_props.swap(*$13);
+        delete $13;
+      }
+      create_vector_index.vector_idx_props.emplace_back(*$12);
+      delete $12;
+      free($4);
+      free($6);
+      free($8);
+
+    }
     ;
+
+
+vector_idx_prop_list:
+    {
+      $$ = nullptr;
+    }
+    | COMMA vector_idx_prop vector_idx_prop_list
+    {
+      if ($3!= nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<VectorIdxProp>;
+      }
+      $$->emplace_back(*$2);
+      delete $2;
+
+    };
+vector_idx_prop:
+    {
+      $$ = nullptr;
+    }
+    | ID EQ ID
+    {
+      LOG_DEBUG("vector_idx_prop");
+      $$ = new VectorIdxProp;
+      $$->attr_name = $1;
+      $$->attr_value = $3;
+      free($1);
+      free($3);
+    }
+    | ID EQ NUMBER
+    {
+      $$ = new VectorIdxProp;
+      $$->attr_name = $1;
+      $$->attr_value = std::to_string($3);
+      free($1);
+    }
+    | ID EQ L2_DISTANCE_T
+    {
+      $$ = new VectorIdxProp;
+      $$->attr_name = $1;
+      $$->attr_value = std::string("L2_DISTANCE_T");
+      free($1);
+    }
+    | ID EQ COSINE_DISTANCE_T
+    {
+      $$ = new VectorIdxProp;
+      $$->attr_name = $1;
+      $$->attr_value = std::string("COSINE_DISTANCE_T");
+      free($1);
+    }
+    | ID EQ INNER_PRODUCT_T
+    {
+      $$ = new VectorIdxProp;
+      $$->attr_name = $1;
+      $$->attr_value = std::string("INNER_PRODUCT_T");
+      free($1);
+    }
+    ;
+
 
 unique_option:
     /* empty */
@@ -837,7 +919,7 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->calc.expressions.swap(*$2);
       delete $2;
     }
-    | SELECT expression_list FROM from_node from_list where group_by having opt_order_by
+    | SELECT expression_list FROM from_node from_list where group_by having opt_order_by limit_clause
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -872,9 +954,16 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
 
       delete $4;
-
+      $$->selection.limit = $10;
     }
     ;
+limit_clause
+    {
+      $$ = -1;
+    }| LIMIT NUMBER{
+      $$ = (int) $2;
+    }
+
 calc_stmt:
     CALC expression_list
     {

@@ -42,6 +42,7 @@ public:
 
   virtual void destroy() = 0;
 
+  const bool is_vector() const { return is_vector_; }
   const IndexMeta &index_meta() const { return index_meta_; }
   /**
    * @brief 插入一条数据
@@ -82,8 +83,9 @@ protected:
   RC init(const IndexMeta &index_meta, const std::vector<const FieldMeta*> &field_metas);
 
 protected:
-  IndexMeta index_meta_;  ///< 索引的元数据
+  IndexMeta              index_meta_;  ///< 索引的元数据
   std::vector<FieldMeta> field_metas_;
+  bool                   is_vector_ = false;
 };
 
 /**

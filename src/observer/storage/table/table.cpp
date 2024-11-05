@@ -27,6 +27,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/meta_util.h"
 #include "storage/index/bplus_tree_index.h"
 #include "storage/index/index.h"
+#include "storage/index/ivf_flat_index.cpp"
 #include "storage/record/record_manager.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
@@ -42,17 +43,16 @@ Table::~Table()
     data_buffer_pool_->close_file();
     data_buffer_pool_ = nullptr;
   }
-  
-  if(text_buffer_pool_ != nullptr) {
+
+  if (text_buffer_pool_ != nullptr) {
     text_buffer_pool_->close_file();
     text_buffer_pool_ = nullptr;
   }
-  
-  if(vector_buffer_pool_ != nullptr) {
+
+  if (vector_buffer_pool_ != nullptr) {
     vector_buffer_pool_->close_file();
     vector_buffer_pool_ = nullptr;
   }
-
 
   for (vector<Index *>::iterator it = indexes_.begin(); it != indexes_.end(); ++it) {
     Index *index = *it;
@@ -144,7 +144,7 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   }
   if (exist_text_feild) {
     std::string text_file = table_text_file(base_dir, name);
-    rc = bpm.create_file(text_file.c_str());
+    rc                    = bpm.create_file(text_file.c_str());
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to create disk buffer pool of text file. file name=%s", text_file.c_str());
       return rc;
@@ -156,7 +156,7 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
       return rc;
     }
   }
-  
+
   // 创建文件存放vector
   bool exist_vector_feild = false;
   for (const FieldMeta &field : *table_meta_.field_metas()) {
@@ -167,7 +167,7 @@ RC Table::create(Db *db, int32_t table_id, const char *path, const char *name, c
   }
   if (exist_vector_feild) {
     std::string vector_file = table_vector_file(base_dir, name);
-    rc = bpm.create_file(vector_file.c_str());
+    rc                      = bpm.create_file(vector_file.c_str());
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to create disk buffer pool of vector file. file name=%s", vector_file.c_str());
       return rc;
@@ -206,16 +206,16 @@ RC Table::drop(Db *db, const char *path)
   bpm.remove_file(data_file.c_str());
   data_buffer_pool_ = nullptr;
 
-  //destroy text file
+  // destroy text file
   if (nullptr != text_buffer_pool_) {
-    string        text_file = table_text_file(base_dir_.c_str(), table_meta_.name());
+    string text_file = table_text_file(base_dir_.c_str(), table_meta_.name());
     bpm.remove_file(text_file.c_str());
     text_buffer_pool_ = nullptr;
   }
 
-  //destroy vector file
+  // destroy vector file
   if (nullptr != vector_buffer_pool_) {
-    string        vector_file = table_vector_file(base_dir_.c_str(), table_meta_.name());
+    string vector_file = table_vector_file(base_dir_.c_str(), table_meta_.name());
     bpm.remove_file(vector_file.c_str());
     vector_buffer_pool_ = nullptr;
   }
@@ -251,7 +251,7 @@ RC Table::open(Db *db, const char *meta_file, const char *base_dir)
     // don't need to remove the data_file
     return rc;
   }
-  
+
   // 加载text数据
   rc = init_text_handler(base_dir);
   if (rc != RC::SUCCESS) {
@@ -316,8 +316,8 @@ RC Table::insert_record(Record &record)
 
   rc = insert_entry_of_indexes(record.data(), record.rid());
   if (rc != RC::SUCCESS) {
-    RC rc2 = RC::SUCCESS; 
-    if (rc != RC::RECORD_DUPLICATE_KEY){
+    RC rc2 = RC::SUCCESS;
+    if (rc != RC::RECORD_DUPLICATE_KEY) {
       rc2 = delete_entry_of_indexes(record.data(), record.rid(), false /*error_on_not_exists*/);
       if (rc2 != RC::SUCCESS)
         LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
@@ -391,8 +391,8 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   int   record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
 
-  const FieldMeta* null_field = table_meta_.null_field();
-  common::Bitmap null_bitmap(record_data + null_field->offset(), table_meta_.field_num());
+  const FieldMeta *null_field = table_meta_.null_field();
+  common::Bitmap   null_bitmap(record_data + null_field->offset(), table_meta_.field_num());
   null_bitmap.clear_bits();
 
   for (int i = 0; i < value_num && OB_SUCC(rc); i++) {
@@ -402,7 +402,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
       null_bitmap.set_bit(normal_field_start_index + i);
       continue;
     }
-    if (value.is_null()){
+    if (value.is_null()) {
       null_bitmap.set_bit(normal_field_start_index + i);
     }
     if (field->type() != value.attr_type()) {
@@ -475,14 +475,14 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
     position[1] = value.length();
     text_buffer_pool_->append_data(position[0], position[1], value.data());
     memcpy(record_data + field->offset(), position, 2 * sizeof(int64_t));
-  }else if(field->type() == AttrType::VECTORS){
-    int dim = field->vector_dim();
+  } else if (field->type() == AttrType::VECTORS) {
+    int    dim    = field->vector_dim();
     Vector vector = value.get_vector();
-    if(dim != vector.dim){
+    if (dim != vector.dim) {
       LOG_WARN("vector dim is not equal to field dim. field dim:%d, vector dim:%d", dim, vector.dim);
       return RC::INVALID_ARGUMENT;
     }
-    for(int i = 0; i < dim; i++){
+    for (int i = 0; i < dim; i++) {
       LOG_INFO("vector[%d]:%f", i, vector.data[i]);
     }
     int64_t position[2];
@@ -500,7 +500,7 @@ RC Table::set_value_to_record(char *record_data, const Value &value, const Field
 RC Table::write_text(int64_t &offset, int64_t length, const char *data)
 {
   RC rc = RC::SUCCESS;
-  rc = text_buffer_pool_->append_data(offset, length, data);
+  rc    = text_buffer_pool_->append_data(offset, length, data);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to append text into disk_buffer_pool, rc=%s", strrc(rc));
     offset = -1;
@@ -524,11 +524,10 @@ RC Table::read_text(int64_t offset, int64_t length, char *data) const
   return rc;
 }
 
-
 RC Table::write_vector(int64_t &offset, int64_t length, const float *data)
 {
   RC rc = RC::SUCCESS;
-  rc = vector_buffer_pool_->append_vector_data(offset, length, data);
+  rc    = vector_buffer_pool_->append_vector_data(offset, length, data);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to append text into disk_buffer_pool, rc=%s", strrc(rc));
     offset = -1;
@@ -580,14 +579,15 @@ RC Table::init_record_handler(const char *base_dir)
 
 RC Table::init_text_handler(const char *base_dir)
 {
-  RC rc = RC::SUCCESS;
+  RC          rc        = RC::SUCCESS;
   std::string text_file = table_text_file(base_dir, table_meta_.name());
 
   bool exist = false;
-  int fd = ::open(text_file.c_str(), O_RDONLY, 0600);
-  if (fd > 0) exist = true;
+  int  fd    = ::open(text_file.c_str(), O_RDONLY, 0600);
+  if (fd > 0)
+    exist = true;
   close(fd);
-  
+
   if (exist) {
     BufferPoolManager &bpm = db_->buffer_pool_manager();
     RC                 rc  = bpm.open_file(db_->log_handler(), text_file.c_str(), text_buffer_pool_);
@@ -603,14 +603,15 @@ RC Table::init_text_handler(const char *base_dir)
 
 RC Table::init_vector_handler(const char *base_dir)
 {
-  RC rc = RC::SUCCESS;
+  RC          rc          = RC::SUCCESS;
   std::string vector_file = table_vector_file(base_dir, table_meta_.name());
 
   bool exist = false;
-  int fd = ::open(vector_file.c_str(), O_RDONLY, 0600);
-  if (fd > 0) exist = true;
+  int  fd    = ::open(vector_file.c_str(), O_RDONLY, 0600);
+  if (fd > 0)
+    exist = true;
   close(fd);
-  
+
   if (exist) {
     BufferPoolManager &bpm = db_->buffer_pool_manager();
     RC                 rc  = bpm.open_file(db_->log_handler(), vector_file.c_str(), vector_buffer_pool_);
@@ -642,7 +643,8 @@ RC Table::get_chunk_scanner(ChunkFileScanner &scanner, Trx *trx, ReadWriteMode m
   return rc;
 }
 
-RC Table::create_index(Trx *trx, bool unique, const std::vector<const FieldMeta *> &field_metas, const char *index_name)
+RC Table::create_index(Trx *trx, bool unique, const std::vector<const FieldMeta *> &field_metas, const char *index_name,
+    const std::vector<VectorIdxProp> &vector_idx_props)
 {
   if (common::is_blank(index_name) || field_metas.empty()) {
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
@@ -651,7 +653,7 @@ RC Table::create_index(Trx *trx, bool unique, const std::vector<const FieldMeta 
 
   IndexMeta new_index_meta;
 
-  RC rc = new_index_meta.init(index_name, unique, field_metas);
+  RC rc = new_index_meta.init(index_name, unique, field_metas, vector_idx_props);
   if (rc != RC::SUCCESS) {
     std::string field_names = field_metas[0]->name();
     for (int i = 0; i < field_metas.size(); i++) {
@@ -682,47 +684,55 @@ RC Table::create_index(Trx *trx, bool unique, const std::vector<const FieldMeta 
                 field_ids.size(), field_metas.size());
     return rc;
   }
+  if (vector_idx_props.size() > 0) {
+    // 创建索引相关数据
+    IvfFlatIndex *index      = new IvfFlatIndex();
+    index->create(new_index_meta, field_metas);
+    string       index_file = table_index_file(base_dir_.c_str(), name(), index_name);
+    indexes_.push_back(index);
 
-  // 创建索引相关数据
-  BplusTreeIndex *index      = new BplusTreeIndex();
-  string          index_file = table_index_file(base_dir_.c_str(), name(), index_name);
+  } else {
+    // 创建索引相关数据
+    BplusTreeIndex *index      = new BplusTreeIndex();
+    string          index_file = table_index_file(base_dir_.c_str(), name(), index_name);
 
-  rc = index->create(this, index_file.c_str(), unique, new_index_meta, field_ids, field_metas);
-  if (rc != RC::SUCCESS) {
-    delete index;
-    LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
-    return rc;
-  }
-
-  // 遍历当前的所有数据，插入这个索引
-  RecordFileScanner scanner;
-  rc = get_record_scanner(scanner, trx, ReadWriteMode::READ_ONLY);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s", 
-             name(), index_name, strrc(rc));
-    return rc;
-  }
-
-  Record record;
-  while (OB_SUCC(rc = scanner.next(record))) {
-    rc = index->insert_entry(record.data(), &record.rid());
+    rc = index->create(this, index_file.c_str(), unique, new_index_meta, field_ids, field_metas);
     if (rc != RC::SUCCESS) {
-      LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
-               name(), index_name, strrc(rc));
+      delete index;
+      LOG_ERROR("Failed to create bplus tree index. file name=%s, rc=%d:%s", index_file.c_str(), rc, strrc(rc));
       return rc;
     }
-  }
-  if (RC::RECORD_EOF == rc) {
-    rc = RC::SUCCESS;
-  } else {
-    LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
-             name(), index_name, strrc(rc));
-    return rc;
-  }
-  scanner.close_scan();
-  LOG_INFO("inserted all records into new index. table=%s, index=%s", name(), index_name);
 
-  indexes_.push_back(index);
+    // 遍历当前的所有数据，插入这个索引
+    RecordFileScanner scanner;
+    rc = get_record_scanner(scanner, trx, ReadWriteMode::READ_ONLY);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create scanner while creating index. table=%s, index=%s, rc=%s", 
+             name(), index_name, strrc(rc));
+      return rc;
+    }
+
+    Record record;
+    while (OB_SUCC(rc = scanner.next(record))) {
+      rc = index->insert_entry(record.data(), &record.rid());
+      if (rc != RC::SUCCESS) {
+        LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
+               name(), index_name, strrc(rc));
+        return rc;
+      }
+    }
+    if (RC::RECORD_EOF == rc) {
+      rc = RC::SUCCESS;
+    } else {
+      LOG_WARN("failed to insert record into index while creating index. table=%s, index=%s, rc=%s",
+             name(), index_name, strrc(rc));
+      return rc;
+    }
+    scanner.close_scan();
+    LOG_INFO("inserted all records into new index. table=%s, index=%s", name(), index_name);
+
+    indexes_.push_back(index);
+  }
 
   /// 接下来将这个索引放到表的元数据中
   TableMeta new_table_meta(table_meta_);
@@ -848,9 +858,9 @@ RC Table::update_record(Record &old_record, Record &new_record)
   }
 
   rc = insert_entry_of_indexes(new_record.data(), new_record.rid());
-  if (rc != RC::SUCCESS) {  // 可能出现了键值重复    
+  if (rc != RC::SUCCESS) {  // 可能出现了键值重复
     RC rc2 = insert_entry_of_indexes(old_record.data(), old_record.rid());
-    
+
     if (rc2 != RC::SUCCESS) {
       LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
@@ -862,7 +872,6 @@ RC Table::update_record(Record &old_record, Record &new_record)
 
   return rc;
 }
-
 
 RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
 {

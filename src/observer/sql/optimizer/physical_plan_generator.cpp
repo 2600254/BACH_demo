@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "sql/expr/expression.h"
+#include "storage/index/bplus_tree_index.h"
 #include "sql/operator/aggregate_vec_physical_operator.h"
 #include "sql/operator/calc_logical_operator.h"
 #include "sql/operator/calc_physical_operator.h"
@@ -28,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/expr_vec_physical_operator.h"
 #include "sql/operator/group_by_vec_physical_operator.h"
 #include "sql/operator/index_scan_physical_operator.h"
+#include "sql/operator/vector_index_scan_physical_operator.h"
 #include "sql/operator/insert_logical_operator.h"
 #include "sql/operator/insert_physical_operator.h"
 #include "sql/operator/update_logical_operator.h"
@@ -254,21 +256,35 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
     }
   }
 
+  bool is_vector = false;
+  if (nullptr != index) {
+    BplusTreeIndex *bplus_index = static_cast<BplusTreeIndex *>(index);
+    is_vector                   = bplus_index->is_vector();
+  }
+
   if (index != nullptr) {
-    ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
+    if (!is_vector) {
+      ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
 
-    const Value               &value           = value_expr->get_value();
-    IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(table,
-        index,
-        table_get_oper.read_write_mode(),
-        &value,
-        true /*left_inclusive*/,
-        &value,
-        true /*right_inclusive*/);
+      const Value               &value           = value_expr->get_value();
+      IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(table,
+          index,
+          table_get_oper.read_write_mode(),
+          &value,
+          true /*left_inclusive*/,
+          &value,
+          true /*right_inclusive*/);
 
-    index_scan_oper->set_predicates(std::move(predicates));
-    oper = unique_ptr<PhysicalOperator>(index_scan_oper);
-    LOG_TRACE("use index scan");
+      index_scan_oper->set_predicates(std::move(predicates));
+      oper = unique_ptr<PhysicalOperator>(index_scan_oper);
+      LOG_TRACE("use index scan");
+    } else {
+      ASSERT(value_expr!= nullptr, "got an index but value expr is null?");
+
+      VectorIndexScanPhysicalOperator *vector_index_scan_oper = new VectorIndexScanPhysicalOperator(table, index);
+      oper = unique_ptr<PhysicalOperator>(vector_index_scan_oper);
+      LOG_TRACE("use vector index scan");
+    }
   } else {
     auto table_scan_oper =
         new TableScanPhysicalOperator(table, table_get_oper.read_write_mode(), table_get_oper.alias());
@@ -629,18 +645,17 @@ RC PhysicalPlanGenerator::create_vec_plan(ExplainLogicalOperator &explain_oper, 
 RC PhysicalPlanGenerator::create_plan(CreateTableLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper)
 {
   RC rc = RC::SUCCESS;
-  oper = unique_ptr<PhysicalOperator>(new CreateTablePhysicalOperator(
-                                              logical_oper.get_db(),
-                                              std::move(logical_oper.table_name()), 
-                                              std::move(logical_oper.attr_infos()),
-                                              logical_oper.storage_format()));
+  oper  = unique_ptr<PhysicalOperator>(new CreateTablePhysicalOperator(logical_oper.get_db(),
+      std::move(logical_oper.table_name()),
+      std::move(logical_oper.attr_infos()),
+      logical_oper.storage_format()));
 
   // create_table_select
-  unique_ptr<PhysicalOperator> select_oper;
+  unique_ptr<PhysicalOperator>         select_oper;
   vector<unique_ptr<LogicalOperator>> &child_opers = logical_oper.children();
   if (!child_opers.empty()) {
     LogicalOperator *child_oper = child_opers[0].get();
-    rc = create(*child_oper, select_oper);
+    rc                          = create(*child_oper, select_oper);
     if (RC::SUCCESS != rc) {
       LOG_WARN("failed to create child operator for create_table_select, rc=%s", strrc(rc));
       return rc;
