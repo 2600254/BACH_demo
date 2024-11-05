@@ -262,6 +262,7 @@ RC LogicalPlanGenerator::create_plan(SelectStmt *select_stmt, unique_ptr<Logical
   }
 
   logical_operator.swap(project_oper);
+  logical_operator->set_limit(select_stmt->limit());
   return RC::SUCCESS;
 }
 

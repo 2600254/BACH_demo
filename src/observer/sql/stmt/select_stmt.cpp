@@ -253,6 +253,7 @@ RC SelectStmt::create(Db *db, SelectSqlNode &select_sql, Stmt *&stmt,
   select_stmt->group_by_.swap(group_by_expressions);
   select_stmt->having_stmt_ = having_filter_stmt;
   select_stmt->ex_agg_expressions_.swap(expr_for_having);
+  select_stmt->limit_ = select_sql.limit;
   
   stmt = select_stmt;
   return RC::SUCCESS;

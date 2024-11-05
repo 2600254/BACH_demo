@@ -43,4 +43,5 @@ public:
 private:
   std::vector<std::unique_ptr<Expression>>     expressions_;
   ExpressionTuple<std::unique_ptr<Expression>> tuple_;
+  int                                          index_ = 0;
 };

@@ -91,6 +91,7 @@ bool exp2value(Expression *exp, Value &value){
         CREATE
         DROP
         GROUP
+        LIMIT
         TABLE
         TABLES
         INDEX
@@ -161,7 +162,6 @@ bool exp2value(Expression *exp, Value &value){
         IS
         HAVING
         WITH
-        LIMIT
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -959,14 +959,6 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->selection.limit = $10;
     }
     ;
-limit_clause:
-    {
-      $$ = -1;
-    }
-    | LIMIT NUMBER
-    {
-      $$ = (int) $2;
-    }
 
 calc_stmt:
     CALC expression_list
@@ -1142,6 +1134,16 @@ group_by:
     }
     | GROUP BY expression_list {
       $$ = $3;
+    }
+    ;
+
+limit_clause:
+    /* empty */
+    {
+      $$ = -1;
+    }
+    | LIMIT NUMBER {
+      $$ = (int)$2;
     }
     ;
 

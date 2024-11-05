@@ -26,6 +26,7 @@ ProjectPhysicalOperator::ProjectPhysicalOperator(vector<unique_ptr<Expression>> 
 
 RC ProjectPhysicalOperator::open(Trx *trx)
 {
+  index_ = 0;
   if (children_.empty()) {
     return RC::SUCCESS;
   }
@@ -42,9 +43,13 @@ RC ProjectPhysicalOperator::open(Trx *trx)
 
 RC ProjectPhysicalOperator::next()
 {
+  if(limit_ > 0 && index_ >= limit_){
+    return RC::RECORD_EOF;
+  }
   if (children_.empty()) {
     return RC::RECORD_EOF;
   }
+  index_++;
   return children_[0]->next();
 }
 

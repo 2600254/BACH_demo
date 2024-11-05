@@ -129,6 +129,7 @@ EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 ASC                                     RETURN_TOKEN(ASC);
 ORDER                                   RETURN_TOKEN(ORDER);
 GROUP                                   RETURN_TOKEN(GROUP);
+LIMIT                                   RETURN_TOKEN(LIMIT);
 BY                                      RETURN_TOKEN(BY);
 AS                                      RETURN_TOKEN(AS);
 STORAGE                                 RETURN_TOKEN(STORAGE);

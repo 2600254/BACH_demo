@@ -62,6 +62,8 @@ public:
   void        add_child(std::unique_ptr<LogicalOperator> oper);
   auto        children() -> std::vector<std::unique_ptr<LogicalOperator>>        &{ return children_; }
   auto        expressions() -> std::vector<std::unique_ptr<Expression>>        &{ return expressions_; }
+  int         limit() const { return limit_; }
+  void        set_limit(int limit) { limit_ = limit; }
   static bool can_generate_vectorized_operator(const LogicalOperatorType &type);
 
 protected:
@@ -70,4 +72,5 @@ protected:
   ///< 表达式，比如select中的列，where中的谓词等等，都可以使用表达式来表示
   ///< 表达式能是一个常量，也可以是一个函数，也可以是一个列，也可以是一个子查询等等
   std::vector<std::unique_ptr<Expression>> expressions_;
+  int limit_ = -1; ///< 限制返回的行数
 };
