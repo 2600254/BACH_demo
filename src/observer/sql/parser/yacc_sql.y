@@ -161,6 +161,7 @@ bool exp2value(Expression *exp, Value &value){
         IS
         HAVING
         WITH
+        LIMIT
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -259,6 +260,7 @@ bool exp2value(Expression *exp, Value &value){
 %type <sql_node>            commands
 %type <vidx_prop>           vector_idx_prop
 %type <vidx_prop_list>      vector_idx_prop_list
+%type <number>              limit_clause
 %left OR
 %left AND
 %left EQ LT GT LE GE NE
@@ -957,10 +959,12 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->selection.limit = $10;
     }
     ;
-limit_clause
+limit_clause:
     {
       $$ = -1;
-    }| LIMIT NUMBER{
+    }
+    | LIMIT NUMBER
+    {
       $$ = (int) $2;
     }
 
