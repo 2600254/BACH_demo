@@ -8,6 +8,13 @@
 
 namespace BACH
 {
+
+	/// @brief type for variable ids
+	using VariableId = uint32_t;
+	/// @brief type of a query id
+	using QueryId = uint64_t;
+	using EngineId = uint64_t;
+
 	using label_t = uint16_t;
 	using vertex_t = uint32_t;
 	using vertex_num_t = uint32_t;
