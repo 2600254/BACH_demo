@@ -14,7 +14,6 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "common/types.h"
-#include "common/type/attr_type.h"
 #include "sql/stmt/create_table_stmt.h"
 #include "event/sql_debug.h"
 #include "sql/stmt/select_stmt.h"

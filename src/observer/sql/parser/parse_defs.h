@@ -194,6 +194,20 @@ struct DropTableSqlNode
   std::string relation_name;  ///< 要删除的表名
 };
 
+/**
+* @brief 描述一个create collection语句
+*/
+struct CreateCollectionNode{
+  std::string collection_name;
+};
+
+/**
+* @brief 描述一个drop collection语句
+*/
+struct DropCollectionNode{
+  std::string collection_name;
+};
+
 struct VectorIdxProp
 {
   std::string attr_name;
@@ -309,11 +323,14 @@ enum SqlCommandFlag
   SCF_DELETE,
   SCF_CREATE_TABLE,
   SCF_DROP_TABLE,
+  SCF_CREATE_COLLECTION, /// 创建集合
+  SCF_DROP_COLLECTION,  /// 删除集合
   SCF_CREATE_INDEX,
   SCF_DROP_INDEX,
   SCF_CREATE_VIEW,
   SCF_SYNC,
   SCF_SHOW_TABLES,
+  SCF_SHOW_COLLECTIONS, /// 打印集合列表
   SCF_DESC_TABLE,
   SCF_BEGIN,  ///< 事务开始语句，可以在这里扩展只读事务
   SCF_COMMIT,
@@ -342,6 +359,8 @@ public:
   UpdateSqlNode       update;
   CreateTableSqlNode  create_table;
   DropTableSqlNode    drop_table;
+  CreateCollectionNode create_collection;
+  DropCollectionNode drop_collection;
   CreateIndexSqlNode  create_index;
   DropIndexSqlNode    drop_index;
   CreateViewSqlNode   create_view;

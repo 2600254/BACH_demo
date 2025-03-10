@@ -94,6 +94,8 @@ bool exp2value(Expression *exp, Value &value){
         LIMIT
         TABLE
         TABLES
+        COLLECTION
+        COLLECTIONS
         INDEX
         VIEW
         CALC
@@ -104,10 +106,12 @@ bool exp2value(Expression *exp, Value &value){
         INSERT
         DELETE
         UPDATE
-        LBRACE
-        RBRACE
+        LPAREN
+        RPAREN
         LBRACK
         RBRACK
+        LBRACE
+        RBRACE
         COMMA
         TRX_BEGIN
         TRX_COMMIT
@@ -238,7 +242,10 @@ bool exp2value(Expression *exp, Value &value){
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
 %type <sql_node>            drop_table_stmt
+%type <sql_node>            create_collection_stmt
+%type <sql_node>            drop_collection_stmt
 %type <sql_node>            show_tables_stmt
+%type <sql_node>            show_collections_stmt
 %type <sql_node>            desc_table_stmt
 %type <sql_node>            create_index_stmt
 %type <sql_node>            drop_index_stmt
@@ -285,7 +292,10 @@ command_wrapper:
   | delete_stmt
   | create_table_stmt
   | drop_table_stmt
+  | create_collection_stmt
+  | drop_collection_stmt
   | show_tables_stmt
+  | show_collections_stmt
   | desc_table_stmt
   | create_index_stmt
   | drop_index_stmt
@@ -343,9 +353,29 @@ drop_table_stmt:    /*drop table 语句的语法解析树*/
       free($3);
     };
 
+drop_collection_stmt: /*drop collection 语句的语法解析树*/
+    DROP COLLECTION ID {
+      $$ = new ParsedSqlNode(SCF_DROP_COLLECTION);
+      $$->drop_collection.collection_name = $3;
+      free($3);
+    };
+
+create_collection_stmt: /*create collection id 语法解析树*/
+    CREATE COLLECTION ID{
+      $$ = new ParsedSqlNode(SCF_CREATE_COLLECTION);
+      $$->create_collection.collection_name = $3;
+      free($3);
+    };
+
 show_tables_stmt:
     SHOW TABLES {
       $$ = new ParsedSqlNode(SCF_SHOW_TABLES);
+    }
+    ;
+
+show_collections_stmt: /*show collections; */
+    SHOW COLLECTIONS {
+      $$ = new ParsedSqlNode(SCF_SHOW_COLLECTIONS);
     }
     ;
 
@@ -358,7 +388,7 @@ desc_table_stmt:
     ;
 
 create_index_stmt:    /*create index 语句的语法解析树*/
-    CREATE unique_option INDEX ID ON ID LBRACE ID idx_col_list RBRACE
+    CREATE unique_option INDEX ID ON ID LPAREN ID idx_col_list RPAREN
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
@@ -377,7 +407,7 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       free($6);
       free($8);
     }
-    | CREATE VECTOR_T INDEX ID ON ID LBRACE ID RBRACE WITH LBRACE vector_idx_prop vector_idx_prop_list RBRACE
+    | CREATE VECTOR_T INDEX ID ON ID LPAREN ID RPAREN WITH LPAREN vector_idx_prop vector_idx_prop_list RPAREN
     {
       $$ = new ParsedSqlNode(SCF_CREATE_VECTOR_INDEX);
       CreateIndexSqlNode &create_vector_index = $$->create_index;
@@ -495,7 +525,7 @@ drop_index_stmt:      /*drop index 语句的语法解析树*/
     }
     ;
 create_table_stmt:    /*create table 语句的语法解析树*/
-    CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE storage_format
+    CREATE TABLE ID LPAREN attr_def attr_def_list RPAREN storage_format
     {
       $$ = new ParsedSqlNode(SCF_CREATE_TABLE);
       CreateTableSqlNode &create_table = $$->create_table;
@@ -516,7 +546,7 @@ create_table_stmt:    /*create table 语句的语法解析树*/
         free($8);
       }
     }
-    | CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE as_option select_stmt storage_format
+    | CREATE TABLE ID LPAREN attr_def attr_def_list RPAREN as_option select_stmt storage_format
     {
       $$ = $9;
       $$->flag = SCF_CREATE_TABLE;
@@ -580,7 +610,7 @@ attr_def_list:
     ;
     
 attr_def:
-    ID type LBRACE number RBRACE null_option
+    ID type LPAREN number RPAREN null_option
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
@@ -623,7 +653,7 @@ create_view_stmt:
       $$->create_view.view_name = $3;
       free($3);
     }
-    | CREATE VIEW ID LBRACE ID idx_col_list RBRACE AS select_stmt
+    | CREATE VIEW ID LPAREN ID idx_col_list RPAREN AS select_stmt
     {
       $$ = $9;
       $$->flag = SCF_CREATE_VIEW;
@@ -653,7 +683,7 @@ type:
     | VECTOR_T   { $$ = static_cast<int>(AttrType::VECTORS); }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE 
+    INSERT INTO ID VALUES LPAREN value value_list RPAREN 
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
@@ -908,7 +938,7 @@ join_list:
     ;
 
 sub_query_expr:
-    LBRACE select_stmt RBRACE
+    LPAREN select_stmt RPAREN
     {
       $$ = new SubQueryExpr($2->selection);
       delete $2;
@@ -1009,7 +1039,7 @@ expression:
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
-    | aggre_type LBRACE expression RBRACE {
+    | aggre_type LPAREN expression RPAREN {
       $$ = create_aggregate_expression($1, $3, sql_string, &@$);
     }
     | value {
@@ -1036,7 +1066,7 @@ expression:
     | sub_query_expr {
       $$ = $1;
     }
-    | LBRACE expression_list RBRACE {
+    | LPAREN expression_list RPAREN {
       if ($2->size() == 1) {
         $$ = $2->front();
       } else {
@@ -1045,13 +1075,13 @@ expression:
       $$->set_name(token_name(sql_string, &@$));
       delete $2;
     }
-    | L2_DISTANCE_T LBRACE expression COMMA expression RBRACE {
+    | L2_DISTANCE_T LPAREN expression COMMA expression RPAREN {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::L2_DISTANCE, $3, $5, sql_string, &@$);
     }
-    | COSINE_DISTANCE_T LBRACE expression COMMA expression RBRACE {
+    | COSINE_DISTANCE_T LPAREN expression COMMA expression RPAREN {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::COSINE_DISTANCE, $3, $5, sql_string, &@$);
     }
-    | INNER_PRODUCT_T LBRACE expression COMMA expression RBRACE {
+    | INNER_PRODUCT_T LPAREN expression COMMA expression RPAREN {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::INNER_PRODUCT, $3, $5, sql_string, &@$);
     }
     ;

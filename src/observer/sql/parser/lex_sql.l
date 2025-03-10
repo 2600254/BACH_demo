@@ -89,6 +89,8 @@ CREATE                                  RETURN_TOKEN(CREATE);
 DROP                                    RETURN_TOKEN(DROP);
 TABLE                                   RETURN_TOKEN(TABLE);
 TABLES                                  RETURN_TOKEN(TABLES);
+COLLECTION                              RETURN_TOKEN(COLLECTION); // 用于创建和删除集合
+COLLECTIONS                             RETURN_TOKEN(COLLECTIONS); // 用于show collections
 INDEX                                   RETURN_TOKEN(INDEX);
 VIEW                                    RETURN_TOKEN(VIEW);
 ON                                      RETURN_TOKEN(ON);
@@ -148,10 +150,12 @@ HAVING                                  RETURN_TOKEN(HAVING);
 WITH                                    RETURN_TOKEN(WITH);
 LIMIT                                   RETURN_TOKEN(LIMIT);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
-"("                                     RETURN_TOKEN(LBRACE);
-")"                                     RETURN_TOKEN(RBRACE);
+"("                                     RETURN_TOKEN(LPAREN);
+")"                                     RETURN_TOKEN(RPAREN);
 "["                                     RETURN_TOKEN(LBRACK);
 "]"                                     RETURN_TOKEN(RBRACK);
+"{"                                     RETURN_TOKEN(LBRACE);
+"}"                                     RETURN_TOKEN(RBRACE);
 
 ","                                     RETURN_TOKEN(COMMA);
 "="                                     RETURN_TOKEN(EQ);
